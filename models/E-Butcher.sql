@@ -59,7 +59,6 @@ CREATE TABLE products (
     product_id SERIAL PRIMARY KEY,
     product_name VARCHAR(64),
     product_stock INTEGER,
-    category VARCHAR(64),
     price INTEGER,
     seller_id INTEGER,
     category_id INTEGER,
@@ -83,7 +82,6 @@ CREATE TABLE districts (
 
 CREATE TABLE payments (
     payment_id SERIAL PRIMARY KEY,
-    payment_method VARCHAR(64),
     payment_status CHAR(1),
     method_id INTEGER,
     FOREIGN KEY (method_id) REFERENCES payment_methods(method_id)
@@ -93,8 +91,6 @@ CREATE TABLE orders (
     order_id SERIAL PRIMARY KEY,
     order_date DATE,
     order_status VARCHAR(64),
-    order_price INTEGER,
-    quantity INTEGER,
     payment_id INTEGER,
     customer_id INTEGER,
     delivery_id INTEGER,
@@ -105,7 +101,6 @@ CREATE TABLE orders (
 
 CREATE TABLE order_details (
     detail_id SERIAL PRIMARY KEY,
-    order_price INTEGER,
     quantity INTEGER,
     discount INTEGER,
     product_id INTEGER,
