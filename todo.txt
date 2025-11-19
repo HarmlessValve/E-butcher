@@ -1,0 +1,2 @@
+1. Relations: Customers & Seller -> Adresses terbalik
+2. Belum ada Input: Addresses untuk Customers & Sellers
