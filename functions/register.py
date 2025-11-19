@@ -1,5 +1,24 @@
 from functions.connection import conn
 
+
+def username_exists(table, username):
+    try:
+        connection, cursor = conn()
+
+        query = f"SELECT username FROM {table} WHERE username = %s"
+        cursor.execute(query, (username,))
+        result = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+
+        return result is not None
+
+    except Exception as e:
+        print("Error:", e)
+        return True
+
+
 def register_seller(name, phone, username, password):
     try:
         connection, cursor = conn()

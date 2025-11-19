@@ -6,7 +6,7 @@ def conn():
     try:
         connection = pg.connect(**DB)
         cursor = connection.cursor()
-        print(fr.GREEN + st.BRIGHT + "[+] Database connection established successfully!" + st.RESET_ALL)
+        print(fr.GREEN + st.BRIGHT + "[+] Database connection success!" + st.RESET_ALL)
         return connection, cursor
 
     except Exception as e:

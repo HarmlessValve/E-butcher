@@ -1,5 +1,6 @@
 from functions.connection import conn
 
+
 def seller_login(username, password):
     try:
         connection, cursor = conn()
@@ -9,6 +10,7 @@ def seller_login(username, password):
             FROM sellers 
             WHERE username = %s AND password = %s
         """
+
         cursor.execute(query, (username, password))
         result = cursor.fetchone()
 
@@ -31,6 +33,7 @@ def customer_login(username, password):
             FROM customers 
             WHERE username = %s AND password = %s
         """
+
         cursor.execute(query, (username, password))
         result = cursor.fetchone()
 
@@ -53,6 +56,7 @@ def courier_login(username, password):
             FROM couriers 
             WHERE username = %s AND password = %s
         """
+
         cursor.execute(query, (username, password))
         result = cursor.fetchone()
 
