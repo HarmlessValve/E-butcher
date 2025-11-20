@@ -19,38 +19,57 @@ def username_exists(table, username):
         return True
 
 
-def register_seller(name, phone, username, password):
+def register_seller(name, phone, username, password, street, district):
     try:
         connection, cursor = conn()
 
         query = """
-            INSERT INTO sellers (seller_name, phone_num, username, password)
-            VALUES (%s, %s, %s, %s)
+            WITH d AS (
+                INSERT INTO districts (district_name)
+                VALUES (%s)
+                RETURNING district_id
+            ),
+            a AS (
+                INSERT INTO addresses (street_name, district_id)
+                VALUES (%s, (SELECT district_id FROM d))
+                RETURNING address_id
+            )
+            INSERT INTO sellers (seller_name, phone_num, username, password, address_id)
+            VALUES (%s, %s, %s, %s, (SELECT address_id FROM a));
         """
-
-        cursor.execute(query, (name, phone, username, password))
+        
+        cursor.execute(query, (district,street,name,phone,username,password))
         connection.commit()
-
+        
         cursor.close()
         connection.close()
-
         return True
-
+    
     except Exception as e:
         print("Error:", e)
         return False
 
 
-def register_customer(name, phone, username, password):
+def register_customer(name, phone, username, password, street, district):
     try:
         connection, cursor = conn()
 
         query = """
-            INSERT INTO customers (customer_name, phone_num, username, password)
-            VALUES (%s, %s, %s, %s)
+            WITH d AS (
+                INSERT INTO districts (district_name)
+                VALUES (%s)
+                RETURNING district_id
+            ),
+            a AS (
+                INSERT INTO addresses (street_name, district_id)
+                VALUES (%s, (SELECT district_id FROM d))
+                RETURNING address_id
+            )
+            INSERT INTO customers (customer_name, phone_num, username, password, address_id)
+            VALUES (%s, %s, %s, %s, (SELECT address_id FROM a));
         """
 
-        cursor.execute(query, (name, phone, username, password))
+        cursor.execute(query, (district,street,name, phone, username, password))
         connection.commit()
 
         cursor.close()

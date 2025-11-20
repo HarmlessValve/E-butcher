@@ -3,12 +3,8 @@ import questionary as qu
 from colorama import Fore as fr, Style as st
 
 from functions.login import seller_login, customer_login, courier_login
-from functions.register import (
-    register_seller,
-    register_customer,
-    register_courier,
-    username_exists
-)
+from functions.register import (register_seller,register_customer,register_courier,username_exists)
+from functions.seller_dashboard import dashboard
 
 
 # ========================= UTILS =========================
@@ -63,6 +59,7 @@ while True:
             password = qu.password("Enter Password:").ask()
             if seller_login(username, password):
                 print(fr.GREEN + "[+] Seller login successful!\n" + st.RESET_ALL)
+                dashboard()
             else:
                 print(fr.RED + "[-] Invalid username or password!\n" + st.RESET_ALL)
 
@@ -94,6 +91,8 @@ while True:
             phone = qu.text("Enter Phone Number (12 digits):").ask()
             username = qu.text("Choose Username:").ask()
             password = qu.password("Choose Password:").ask()
+            street = qu.text("Enter Street:").ask()
+            district = qu.text("Enter District:").ask()
 
             if not validate_input(name, phone, username, password):
                 print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
@@ -107,7 +106,7 @@ while True:
                 print(fr.RED + "[-] Username already exists!\n" + st.RESET_ALL)
                 continue
 
-            if register_seller(name, phone, username, password):
+            if register_seller(name, phone, username, password, street, district):
                 print(fr.GREEN + "[+] Seller registered successfully!\n" + st.RESET_ALL)
             else:
                 print(fr.RED + "[-] Registration failed!\n" + st.RESET_ALL)
@@ -117,6 +116,8 @@ while True:
             phone = qu.text("Enter Phone Number (12 digits):").ask()
             username = qu.text("Choose Username:").ask()
             password = qu.password("Choose Password:").ask()
+            street = qu.text("Enter Street:").ask()
+            district = qu.text("Enter District:").ask()
 
             if not validate_input(name, phone, username, password):
                 print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
@@ -130,7 +131,7 @@ while True:
                 print(fr.RED + "[-] Username already exists!\n" + st.RESET_ALL)
                 continue
 
-            if register_customer(name, phone, username, password):
+            if register_customer(name, phone, username, password, street, district):
                 print(fr.GREEN + "[+] Customer registered successfully!\n" + st.RESET_ALL)
             else:
                 print(fr.RED + "[-] Registration failed!\n" + st.RESET_ALL)

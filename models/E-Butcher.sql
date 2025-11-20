@@ -1,4 +1,3 @@
-
 DROP TABLE IF EXISTS order_details CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS payments CASCADE;
@@ -12,88 +11,88 @@ DROP TABLE IF EXISTS couriers CASCADE;
 DROP TABLE IF EXISTS payment_methods CASCADE;
 DROP TABLE IF EXISTS product_categories CASCADE;
 
-CREATE TABLE product_categories (
-    category_id SERIAL PRIMARY KEY,
-    category_name VARCHAR(64)
-);
-
-CREATE TABLE payment_methods (
-    method_id SERIAL PRIMARY KEY,
-    method_name VARCHAR(64)
-);
-
-CREATE TABLE couriers (
-    courier_id SERIAL PRIMARY KEY,
-    courier_name VARCHAR(64),
-    phone_num CHAR(12),
-    username VARCHAR(64),
-    password VARCHAR(64)
-);
-
-CREATE TABLE sellers (
-    seller_id SERIAL PRIMARY KEY,
-    seller_name VARCHAR(64),
-    phone_num CHAR(12),
-    username VARCHAR(64) UNIQUE,
-    password VARCHAR(64)
-);
-
-CREATE TABLE customers (
-    customer_id SERIAL PRIMARY KEY,
-    customer_name VARCHAR(64),
-    phone_num CHAR(12),
-    username VARCHAR(64) UNIQUE,
-    password VARCHAR(64)
+CREATE TABLE districts (
+    district_id SERIAL PRIMARY KEY,
+    district_name VARCHAR(64) NOT NULL
 );
 
 CREATE TABLE addresses (
     address_id SERIAL PRIMARY KEY,
-    seller_id INTEGER,
-    customer_id INTEGER,
-    street_name VARCHAR(64),
-    FOREIGN KEY (seller_id) REFERENCES sellers(seller_id),
-    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+    street_name VARCHAR(64) NOT NULL,
+    district_id INTEGER NOT NULL,
+    FOREIGN KEY (district_id) REFERENCES districts(district_id)
+);
+
+CREATE TABLE product_categories (
+    category_id SERIAL PRIMARY KEY NOT NULL,
+    category_name VARCHAR(64) NOT NULL
+);
+
+CREATE TABLE payment_methods (
+    method_id SERIAL PRIMARY KEY NOT NULL,
+    method_name VARCHAR(64) NOT NULL
+);
+
+CREATE TABLE couriers (
+    courier_id SERIAL PRIMARY KEY NOT NULL,
+    courier_name VARCHAR(64) NOT NULL,
+    phone_num CHAR(12) NOT NULL,
+    username VARCHAR(64) NOT NULL,
+    password VARCHAR(64) NOT NULL
+);
+
+CREATE TABLE sellers (
+    seller_id SERIAL PRIMARY KEY NOT NULL,
+    seller_name VARCHAR(64) NOT NULL,
+    phone_num CHAR(12) NOT NULL,
+    username VARCHAR(64) NOT NULL UNIQUE,
+    password VARCHAR(64) NOT NULL,
+    address_id INTEGER NOT NULL,
+    FOREIGN KEY (address_id) REFERENCES addresses(address_id)
+);
+
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY NOT NULL,
+    customer_name VARCHAR(64) NOT NULL,
+    phone_num CHAR(12) NOT NULL,
+    username VARCHAR(64) NOT NULL UNIQUE,
+    password VARCHAR(64) NOT NULL,
+    address_id INTEGER NOT NULL,
+    FOREIGN KEY (address_id) REFERENCES addresses(address_id)
 );
 
 CREATE TABLE products (
     product_id SERIAL PRIMARY KEY,
-    product_name VARCHAR(64),
-    product_stock INTEGER,
-    price INTEGER,
-    seller_id INTEGER,
-    category_id INTEGER,
+    product_name VARCHAR(64) NOT NULL,
+    product_stock INTEGER NOT NULL,
+    price INTEGER NOT NULL,
+    seller_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
     FOREIGN KEY (seller_id) REFERENCES sellers(seller_id),
     FOREIGN KEY (category_id) REFERENCES product_categories(category_id)
 );
 
 CREATE TABLE deliveries (
     delivery_id SERIAL PRIMARY KEY,
-    delivery_date DATE,
-    courier_id INTEGER,
+    delivery_date DATE NOT NULL,
+    courier_id INTEGER NOT NULL,
     FOREIGN KEY (courier_id) REFERENCES couriers(courier_id)
-);
-
-CREATE TABLE districts (
-    district_id SERIAL PRIMARY KEY,
-    district_name VARCHAR(64),
-    address_id INTEGER,
-    FOREIGN KEY (address_id) REFERENCES addresses(address_id)
 );
 
 CREATE TABLE payments (
     payment_id SERIAL PRIMARY KEY,
-    payment_status CHAR(1),
-    method_id INTEGER,
+    payment_status CHAR(1) NOT NULL,
+    method_id INTEGER NOT NULL,
     FOREIGN KEY (method_id) REFERENCES payment_methods(method_id)
 );
 
 CREATE TABLE orders (
     order_id SERIAL PRIMARY KEY,
-    order_date DATE,
-    order_status VARCHAR(64),
-    payment_id INTEGER,
-    customer_id INTEGER,
-    delivery_id INTEGER,
+    order_date DATE NOT NULL,
+    order_status VARCHAR(64) NOT NULL,
+    payment_id INTEGER NOT NULL,
+    customer_id INTEGER NOT NULL,
+    delivery_id INTEGER NOT NULL,
     FOREIGN KEY (payment_id) REFERENCES payments(payment_id),
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
     FOREIGN KEY (delivery_id) REFERENCES deliveries(delivery_id)
@@ -101,10 +100,10 @@ CREATE TABLE orders (
 
 CREATE TABLE order_details (
     detail_id SERIAL PRIMARY KEY,
-    quantity INTEGER,
-    discount INTEGER,
-    product_id INTEGER,
-    order_id INTEGER,
+    quantity INTEGER NOT NULL,
+    discount INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
     FOREIGN KEY (order_id) REFERENCES orders(order_id)
 );
