@@ -59,7 +59,7 @@ while True:
             password = qu.password("Enter Password:").ask()
             if seller_login(username, password):
                 print(fr.GREEN + "[+] Seller login successful!\n" + st.RESET_ALL)
-                dashboard()
+                dashboard(username, password)
             else:
                 print(fr.RED + "[-] Invalid username or password!\n" + st.RESET_ALL)
 
