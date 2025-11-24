@@ -6,8 +6,8 @@
 1. buat Seller Menu:- show account                   #menu account ✅
                     - edit account                   #menu account ✅
                     - show products                  #menu product ✅
-                    - add products                   #menu product
-                    - edit products                  #menu product
+                    - add products                   #menu product ✅
+                    - edit products                  #menu product ✅
                     - disable products               #menu product
                     - cari product based on category #menu product (optional) 
                     - show orders list               #menu order

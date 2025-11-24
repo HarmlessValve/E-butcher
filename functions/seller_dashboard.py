@@ -13,7 +13,7 @@ def dashboard(username, password):
 
         if option == "Account":
             result = account(username, password)
-            print((result))
+            print(result + "\n")
             option = qu.select("Account Management", choices=["Edit Account","Back"]).ask()
             
             if option == "Edit Account":
@@ -24,14 +24,27 @@ def dashboard(username, password):
                     break
 
         elif option == "Products":
-            result = product(username,password)
-            
-            if result == None:
+            products = product(username, password)
+            print(products)
+            if not products:
                 print(fr.YELLOW + "[-] data products not found\n" + st.RESET_ALL)
             
-            option = qu.select("Products Management", choices=["Add Products","Edit Products", "Delete Products", "Exit"]).ask()
-
-
+            option = qu.select("Products Management", choices=["Add Products","Edit Products", "Delete Products", "Back"]).ask()
+            
+            if option == "Add Products":
+                
+                product_name = qu.text("Product Name: ").ask()
+                stock = qu.text("Stock: ").ask()
+                price = qu.text("Price: ").ask()
+                category_name = qu.text("Category: ").ask()
+                
+                result = add_product(username, password, product_name, stock, price, category_name)
+                
+            elif option == "Edit Products":
+                result = edit_product(username, password)
+            elif option == "Delete Products":
+                print("Delete product menu... (belum dibuat)")
+                
         elif option == "Orders":
             print("Order menu... (belum dibuat)")
 
@@ -55,7 +68,7 @@ def account(username, password):
     
     row = cursor.fetchone()
     if row is None:
-        return "Akun tidak ditemukan."
+        return "[-] Seller not found."
     
     data = [list(row)]
 
@@ -74,7 +87,7 @@ def edit_account(username, password):
     # Ambil data user
     query = """
         SELECT s.seller_name, s.phone_num, s.username, s.password,
-        a.address_id, a.street_name, d.district_id, d.district_name
+        a.address_id, a.street_name, d.district_name
         FROM sellers s
         JOIN addresses a ON s.address_id = a.address_id
         JOIN districts d ON a.district_id = d.district_id
@@ -85,18 +98,18 @@ def edit_account(username, password):
 
     if not data:
         print("[-] Data not found.")
-        return
+        return 
+    
+    seller_name, phone_num, old_username, old_password, address_id, street_name, district_name = data
 
-    seller_name, phone_num, old_username, old_password, address_id, street_name, district_id, district_name = data
-
-    print("[!] Edit Account")
-    print("Press Enter for not updated data\n")
+    print(fr.YELLOW + "[!] Edit Account" + st.RESET_ALL)
+    print("press Enter for non-updated datas\n")
 
     # Input baru
     new_name = qu.text(f"Seller Name ({seller_name}): ").ask() or seller_name
     new_phone = qu.text(f"Phone Number ({phone_num}): ").ask() or phone_num
     new_username = qu.text(f"Username ({old_username}): ").ask() or old_username
-    new_password = qu.text(f"Password ({old_password}): ").ask() or old_password
+    new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
     new_street = qu.text(f"Street Name ({street_name}): ").ask() or street_name
     new_district = qu.text(f"District Name ({district_name}): ").ask() or district_name
 
@@ -144,19 +157,191 @@ def edit_account(username, password):
 
     return "logout"
 
-def product(username,password):
+def product(username, password):
     connection, cursor = conn()
+
     query = """
         SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name 
         FROM products p 
         JOIN product_categories c ON p.category_id = c.category_id 
         JOIN sellers s ON p.seller_id = s.seller_id 
-        WHERE username = %s AND password = %s
+        WHERE s.username = %s AND s.password = %s
     """
     cursor.execute(query, (username, password))
-    result = cursor.fetchone()
+    rows = cursor.fetchall()
 
     cursor.close()
     connection.close()
 
-    return result
+    if not rows:
+        return fr.YELLOW + "[-] Data products not found." + st.RESET_ALL
+
+    # Convert each row tuple → list
+    data = [list(row) for row in rows]
+
+    headers = ["Product ID", "Name", "Stock", "Price", "Category"]
+
+    table = tb(data, headers=headers, tablefmt="fancy_grid")
+    return table
+
+
+def add_product(username, password, product_name, stock, price, category_name):
+    connection, cursor = conn()
+
+    try:
+        # Cek seller terlebih dahulu
+        cursor.execute(
+            "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
+            (username, password)
+        )
+        seller = cursor.fetchone()
+
+        if not seller:
+            print(fr.RED + "[-] Seller authentication failed." + st.RESET_ALL)
+            cursor.close()
+            connection.close()
+            return False
+
+        # Query insert produk + kategori
+        query = """
+            WITH category AS (
+                INSERT INTO product_categories (category_name)
+                VALUES (%s)
+                RETURNING category_id
+            ),
+            seller_data AS (
+                SELECT seller_id FROM sellers
+                WHERE username = %s AND password = %s
+            )
+            INSERT INTO products (product_name, product_stock, price, seller_id, category_id)
+            SELECT %s, %s, %s, s.seller_id, c.category_id
+            FROM seller_data s, category c;
+        """
+
+        cursor.execute(query, (
+            category_name,
+            username, password,
+            product_name, stock, price
+        ))
+
+        connection.commit()
+        print(fr.GREEN + "[+] Product + Category inserted successfully!" + st.RESET_ALL)
+
+        cursor.close()
+        connection.close()
+        return True
+
+    except:
+        print(fr.RED + "\n[-] invalid Input syntax" + st.RESET_ALL)
+        
+        connection.rollback()
+        cursor.close()
+        connection.close()
+        return False
+    
+def edit_product(username, password):
+    connection, cursor = conn()
+
+    try:
+        # ---------------------------------------------------------
+        # 1. Ambil seller_id berdasarkan login
+        # ---------------------------------------------------------
+        cursor.execute(
+            "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
+            (username, password)
+        )
+        seller = cursor.fetchone()
+
+        if not seller:
+            print("[-] Seller authentication failed.")
+            return
+
+        seller_id = seller[0]
+
+        # ---------------------------------------------------------
+        # 2. Tampilkan product list memakai tabulate
+        # ---------------------------------------------------------
+        cursor.execute("""
+            SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name
+            FROM products p
+            JOIN product_categories c ON p.category_id = c.category_id
+            WHERE p.seller_id = %s
+        """, (seller_id, ))
+
+        rows = cursor.fetchall()
+
+        if not rows:
+            print("[-] No products found.")
+            return
+
+        print(tb(
+            rows,
+            headers=["Product ID", "Name", "Stock", "Price", "Category"],
+            tablefmt="fancy_grid"
+        ))
+
+        # ---------------------------------------------------------
+        # 3. User pilih product_id
+        # ---------------------------------------------------------
+        product_id = qu.text("Enter Product ID to edit: ").ask()
+
+        cursor.execute("""
+            SELECT p.product_name, p.product_stock, p.price, c.category_name
+            FROM products p
+            JOIN product_categories c ON p.category_id = c.category_id
+            WHERE p.product_id = %s AND p.seller_id = %s
+        """, (product_id, seller_id))
+
+        product = cursor.fetchone()
+
+        if not product:
+            print("[-] Product not found or not owned by this seller.")
+            return
+
+        old_name, old_stock, old_price, old_category = product
+
+        # ---------------------------------------------------------
+        # 4. Input baru (Enter = tidak ubah)
+        # ---------------------------------------------------------
+        print("[!] press Enter for non-updated datas\n")
+
+        new_name = qu.text(f"Product Name ({old_name}): ").ask() or old_name
+        new_stock = qu.text(f"Stock ({old_stock}): ").ask() or old_stock
+        new_price = qu.text(f"Price ({old_price}): ").ask() or old_price
+        new_category = qu.text(f"Category ({old_category}): ").ask() or old_category
+
+        # ---------------------------------------------------------
+        # 5. Insert kategori baru + update produk
+        # ---------------------------------------------------------
+        query = """
+            WITH category AS (
+                INSERT INTO product_categories (category_name)
+                VALUES (%s)
+                RETURNING category_id
+            )
+            UPDATE products
+            SET product_name = %s,
+                product_stock = %s,
+                price = %s,
+                category_id = (SELECT category_id FROM category)
+            WHERE product_id = %s AND seller_id = %s;
+        """
+
+        cursor.execute(query, (
+            new_category,
+            new_name, new_stock, new_price,
+            product_id, seller_id
+        ))
+
+        connection.commit()
+        print("[+] Product updated successfully!")
+        return "success"
+
+    except Exception:
+        connection.rollback()
+        print(fr.RED + "\n[-] invalid input syntax" + st.RESET_ALL)
+        return False
+
+    finally:
+        cursor.close()
+        connection.close()
