@@ -3,9 +3,9 @@
 2. Belum ada Input: Addresses untuk Customers & Sellers ✅
 
 20 nov 
-1. buat Seller Menu:- show account                   #menu account
-                    - edit account                   #menu account
-                    - show products                  #menu product
+1. buat Seller Menu:- show account                   #menu account ✅
+                    - edit account                   #menu account ✅
+                    - show products                  #menu product ✅
                     - add products                   #menu product
                     - edit products                  #menu product
                     - disable products               #menu product

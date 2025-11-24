@@ -1,5 +1,6 @@
 import pyfiglet as pf
 import questionary as qu
+from tabulate import tabulate as tb
 from colorama import Fore as fr, Style as st
 from functions.connection import conn
 
@@ -8,24 +9,30 @@ def dashboard(username, password):
     print(fr.GREEN + st.BRIGHT + msg + st.RESET_ALL)
 
     while True:
-        option = qu.select("dashboard menus", choices=["Account", "Product", "Order", "Recap", "Exit"]).ask()
+        option = qu.select("dashboard menus", choices=["Account", "Products", "Orders", "Recap", "Exit"]).ask()
 
         if option == "Account":
             result = account(username, password)
-            print(result)
+            print((result))
             option = qu.select("Account Management", choices=["Edit Account","Back"]).ask()
             
             if option == "Edit Account":
                 result = edit_account(username, password)
                 
                 if result == "logout":
-                    print(fr.YELLOW + "[!] data updated, login requiered\n" + st.RESET_ALL)
+                    print(fr.GREEN + "[+] data updated, login requiered\n" + st.RESET_ALL)
                     break
 
-        elif option == "Product":
-            print("Product menu... (belum dibuat)")
+        elif option == "Products":
+            result = product(username,password)
+            
+            if result == None:
+                print(fr.YELLOW + "[-] data products not found\n" + st.RESET_ALL)
+            
+            option = qu.select("Products Management", choices=["Add Products","Edit Products", "Delete Products", "Exit"]).ask()
 
-        elif option == "Order":
+
+        elif option == "Orders":
             print("Order menu... (belum dibuat)")
 
         elif option == "Recap":
@@ -35,7 +42,6 @@ def dashboard(username, password):
             print("Keluar dari dashboard.")
             break
 
-
 def account(username, password):
     connection, cursor = conn()
     query = """
@@ -43,10 +49,19 @@ def account(username, password):
         FROM sellers s 
         JOIN addresses a ON s.address_id = a.address_id 
         JOIN districts d ON a.district_id = d.district_id
-        WHERE username = %s AND password = %s
+        WHERE s.username = %s AND s.password = %s
     """
     cursor.execute(query, (username, password))
-    result = cursor.fetchone()
+    
+    row = cursor.fetchone()
+    if row is None:
+        return "Akun tidak ditemukan."
+    
+    data = [list(row)]
+
+    tb_headers = ["Seller Name", "Phone Number", "Username", "Password","Street Name", "District Name"]
+
+    result = tb(data, headers=tb_headers, tablefmt="fancy_grid")
 
     cursor.close()
     connection.close()
@@ -69,7 +84,7 @@ def edit_account(username, password):
     data = cursor.fetchone()
 
     if not data:
-        print("Akun tidak ditemukan.")
+        print("[-] Data not found.")
         return
 
     seller_name, phone_num, old_username, old_password, address_id, street_name, district_id, district_name = data
@@ -128,3 +143,20 @@ def edit_account(username, password):
     connection.close()
 
     return "logout"
+
+def product(username,password):
+    connection, cursor = conn()
+    query = """
+        SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name 
+        FROM products p 
+        JOIN product_categories c ON p.category_id = c.category_id 
+        JOIN sellers s ON p.seller_id = s.seller_id 
+        WHERE username = %s AND password = %s
+    """
+    cursor.execute(query, (username, password))
+    result = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    return result
