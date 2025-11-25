@@ -4,7 +4,8 @@ from colorama import Fore as fr, Style as st
 
 from functions.login import seller_login, customer_login, courier_login
 from functions.register import (register_seller,register_customer,register_courier,username_exists)
-from functions.seller_dashboard import dashboard
+from functions.seller_dashboard import dashboard as seller_dashboard
+from functions.customer_dashboard import dashboard as customer_dashboard
 
 
 # ========================= UTILS =========================
@@ -59,7 +60,7 @@ while True:
             password = qu.password("Enter Password:").ask()
             if seller_login(username, password):
                 print(fr.GREEN + "[+] Seller login success\n" + st.RESET_ALL)
-                dashboard(username, password)
+                seller_dashboard(username, password)
             else:
                 print(fr.RED + "[-] Invalid username or password!\n" + st.RESET_ALL)
 
@@ -68,6 +69,7 @@ while True:
             password = qu.password("Enter Password:").ask()
             if customer_login(username, password):
                 print(fr.GREEN + "[+] Customer login successful!\n" + st.RESET_ALL)
+                customer_dashboard(username, password)
             else:
                 print(fr.RED + "[-] Invalid username or password!\n" + st.RESET_ALL)
 

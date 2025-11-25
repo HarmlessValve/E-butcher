@@ -29,7 +29,7 @@ def dashboard(username, password):
             if not products:
                 print(fr.YELLOW + "[-] data products not found\n" + st.RESET_ALL)
             
-            option = qu.select("Products Management", choices=["Add Products","Edit Products", "Delete Products", "Back"]).ask()
+            option = qu.select("Products Management", choices=["Add Products","Edit Products", "Back"]).ask()
             
             if option == "Add Products":
                 
@@ -42,8 +42,6 @@ def dashboard(username, password):
                 
             elif option == "Edit Products":
                 result = edit_product(username, password)
-            elif option == "Delete Products":
-                print("Delete product menu... (belum dibuat)")
                 
         elif option == "Orders":
             print("Order menu... (belum dibuat)")
@@ -161,7 +159,7 @@ def product(username, password):
     connection, cursor = conn()
 
     query = """
-        SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name 
+        SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name, p.is_deleted 
         FROM products p 
         JOIN product_categories c ON p.category_id = c.category_id 
         JOIN sellers s ON p.seller_id = s.seller_id 
@@ -179,11 +177,10 @@ def product(username, password):
     # Convert each row tuple → list
     data = [list(row) for row in rows]
 
-    headers = ["Product ID", "Name", "Stock", "Price", "Category"]
+    headers = ["Product ID", "Name", "Stock", "Price", "Category", "Display Product"]
 
     table = tb(data, headers=headers, tablefmt="fancy_grid")
     return table
-
 
 def add_product(username, password, product_name, stock, price, category_name):
     connection, cursor = conn()
@@ -244,7 +241,7 @@ def edit_product(username, password):
 
     try:
         # ---------------------------------------------------------
-        # 1. Ambil seller_id berdasarkan login
+        # 1. Authenticate seller
         # ---------------------------------------------------------
         cursor.execute(
             "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
@@ -259,10 +256,11 @@ def edit_product(username, password):
         seller_id = seller[0]
 
         # ---------------------------------------------------------
-        # 2. Tampilkan product list memakai tabulate
+        # 2. Show seller's products
         # ---------------------------------------------------------
         cursor.execute("""
-            SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name
+            SELECT p.product_id, p.product_name, p.product_stock, p.price, 
+                   c.category_name, p.is_deleted
             FROM products p
             JOIN product_categories c ON p.category_id = c.category_id
             WHERE p.seller_id = %s
@@ -276,17 +274,18 @@ def edit_product(username, password):
 
         print(tb(
             rows,
-            headers=["Product ID", "Name", "Stock", "Price", "Category"],
+            headers=["Product ID", "Name", "Stock", "Price", "Category", "Display Product"],
             tablefmt="fancy_grid"
         ))
 
         # ---------------------------------------------------------
-        # 3. User pilih product_id
+        # 3. Choose product
         # ---------------------------------------------------------
         product_id = qu.text("Enter Product ID to edit: ").ask()
 
         cursor.execute("""
-            SELECT p.product_name, p.product_stock, p.price, c.category_name
+            SELECT p.product_name, p.product_stock, p.price, 
+                   c.category_name, p.is_deleted
             FROM products p
             JOIN product_categories c ON p.category_id = c.category_id
             WHERE p.product_id = %s AND p.seller_id = %s
@@ -298,12 +297,12 @@ def edit_product(username, password):
             print("[-] Product not found or not owned by this seller.")
             return
 
-        old_name, old_stock, old_price, old_category = product
+        old_name, old_stock, old_price, old_category, old_is_deleted = product
 
         # ---------------------------------------------------------
-        # 4. Input baru (Enter = tidak ubah)
+        # 4. New input (optional)
         # ---------------------------------------------------------
-        print("[!] press Enter for non-updated datas\n")
+        print("press Enter for non-updated datas\n")
 
         new_name = qu.text(f"Product Name ({old_name}): ").ask() or old_name
         new_stock = qu.text(f"Stock ({old_stock}): ").ask() or old_stock
@@ -311,7 +310,26 @@ def edit_product(username, password):
         new_category = qu.text(f"Category ({old_category}): ").ask() or old_category
 
         # ---------------------------------------------------------
-        # 5. Insert kategori baru + update produk
+        # 5. NEW — select input for is_deleted (uses choices)
+        # ---------------------------------------------------------
+        visibility_choice = qu.select(
+            f"Product Visibility (current: {'Showed' if old_is_deleted else 'Hidden'}): ",
+            choices=[
+                "Show",
+                "Hide",
+                "Keep current"
+            ]
+        ).ask()
+
+        if visibility_choice.startswith("Show"):
+            new_is_deleted = True
+        elif visibility_choice.startswith("Hide"):
+            new_is_deleted = False
+        else:
+            new_is_deleted = old_is_deleted
+
+        # ---------------------------------------------------------
+        # 6. Insert new category & update product
         # ---------------------------------------------------------
         query = """
             WITH category AS (
@@ -323,18 +341,20 @@ def edit_product(username, password):
             SET product_name = %s,
                 product_stock = %s,
                 price = %s,
-                category_id = (SELECT category_id FROM category)
+                category_id = (SELECT category_id FROM category),
+                is_deleted = %s
             WHERE product_id = %s AND seller_id = %s;
         """
 
         cursor.execute(query, (
             new_category,
             new_name, new_stock, new_price,
+            new_is_deleted,
             product_id, seller_id
         ))
 
         connection.commit()
-        print("[+] Product updated successfully!")
+        print(fr.GREEN + "\n[+] Product updated!" + st.RESET_ALL)
         return "success"
 
     except Exception:

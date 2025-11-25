@@ -49,7 +49,7 @@ CREATE TABLE sellers (
     phone_num CHAR(12) NOT NULL,
     username VARCHAR(64) NOT NULL UNIQUE,
     password VARCHAR(64) NOT NULL,
-    address_id INTEGER NOT NULL,
+    address_id INTEGER NOT NULL UNIQUE,
     FOREIGN KEY (address_id) REFERENCES addresses(address_id)
 );
 
@@ -59,7 +59,7 @@ CREATE TABLE customers (
     phone_num CHAR(12) NOT NULL,
     username VARCHAR(64) NOT NULL UNIQUE,
     password VARCHAR(64) NOT NULL,
-    address_id INTEGER NOT NULL,
+    address_id INTEGER NOT NULL UNIQUE,
     FOREIGN KEY (address_id) REFERENCES addresses(address_id)
 );
 
@@ -70,24 +70,25 @@ CREATE TABLE products (
     price INTEGER NOT NULL,
     seller_id INTEGER NOT NULL,
     category_id INTEGER NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT TRUE,
     FOREIGN KEY (seller_id) REFERENCES sellers(seller_id),
     FOREIGN KEY (category_id) REFERENCES product_categories(category_id)
 );
 
 CREATE TABLE delivery_status(
-	delivery_status_id SERIAL PRIMARY KEY,
-	delivery_status VARCHAR(64) NOT NULL
+    delivery_status_id SERIAL PRIMARY KEY,
+    delivery_status VARCHAR(64) NOT NULL
 );
 
 CREATE TABLE order_status(
-	order_status_id SERIAL PRIMARY KEY,
-	order_status VARCHAR(64) NOT NULL
+    order_status_id SERIAL PRIMARY KEY,
+    order_status VARCHAR(64) NOT NULL
 );
 
 CREATE TABLE deliveries (
     delivery_id SERIAL PRIMARY KEY,
     delivery_date DATE NOT NULL,
-	delivery_status_id INTEGER NOT NULL,
+    delivery_status_id INTEGER NOT NULL,
     courier_id INTEGER NOT NULL,
     FOREIGN KEY (delivery_status_id) REFERENCES delivery_status(delivery_status_id),
     FOREIGN KEY (courier_id) REFERENCES couriers(courier_id)
@@ -103,10 +104,11 @@ CREATE TABLE payments (
 CREATE TABLE orders (
     order_id SERIAL PRIMARY KEY,
     order_date DATE NOT NULL,
-	order_status_id INTEGER NOT NULL,
+    order_status_id INTEGER NOT NULL,
     payment_id INTEGER NOT NULL,
     customer_id INTEGER NOT NULL,
     delivery_id INTEGER NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT TRUE,
     FOREIGN KEY (order_status_id) REFERENCES order_status(order_status_id),
     FOREIGN KEY (payment_id) REFERENCES payments(payment_id),
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
@@ -117,7 +119,7 @@ CREATE TABLE order_details (
     detail_id SERIAL PRIMARY KEY,
     quantity INTEGER NOT NULL,
     discount INTEGER NOT NULL,
-	price INTEGER NOT NULL,
+    price INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
     order_id INTEGER NOT NULL,
     FOREIGN KEY (product_id) REFERENCES products(product_id),
