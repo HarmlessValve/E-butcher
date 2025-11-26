@@ -30,7 +30,7 @@ def dashboard(username, password):
                 print(fr.YELLOW + "[-] data products not found\n" + st.RESET_ALL)
             
             option = qu.select("Products Management", choices=["Add Products","Edit Products", "Back"]).ask()
-            
+
             if option == "Add Products":
                 
                 product_name = qu.text("Product Name: ").ask()
@@ -44,13 +44,22 @@ def dashboard(username, password):
                 result = edit_product(username, password)
                 
         elif option == "Orders":
-            print("Order menu... (belum dibuat)")
-
+            order = orders(username, password)
+            print(order)
+            if not order:
+                print(fr.YELLOW + "[-] data orders not found\n" + st.RESET_ALL)
+            
+            option = qu.select("Orders Management", choices=["Accept Orders","Reject Orders", "Back"]).ask()
+            
+            if option == "Accept Orders":
+                pass
+            elif option == "Reject Orders":
+                pass
         elif option == "Recap":
             print("Recap menu... (belum dibuat)")
 
         elif option == "Exit":
-            print("Keluar dari dashboard.")
+            print(fr.YELLOW + "[!] Exiting Dashboard..." + st.RESET_ALL)
             break
 
 def account(username, password):
@@ -363,3 +372,41 @@ def edit_product(username, password):
     finally:
         cursor.close()
         connection.close()
+
+def orders(username, password):
+    connection, cursor = conn()
+
+    query = """
+    SELECT o.order_id, p.product_name, pc.category_name, p.product_stock,
+    od.quantity, p.price, od.discount, os.order_status, c.customer_name, py.payment_status,
+    pm.method_name
+    FROM products p 
+    JOIN product_categories pc ON p.category_id = pc.category_id 
+    JOIN sellers s ON p.seller_id = s.seller_id
+    JOIN order_details od ON p.product_id = od.product_id
+    JOIN orders o ON od.order_id = o.order_id
+    JOIN customers c ON o.customer_id = c.customer_id
+    JOIN order_status os ON o.order_status_id = os.order_status_id
+    JOIN payments py ON o.payment_id = py.payment_id
+    JOIN payment_methods pm ON py.method_id = pm.method_id
+    WHERE s.username = %s AND s.password = %s AND o.is_deleted = 'false'
+    ORDER BY c.customer_name
+    """
+    cursor.execute(query, (username, password))
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not rows:
+        return fr.YELLOW + "[-] Data orders not found." + st.RESET_ALL
+
+    data = [list(row) for row in rows]
+
+    headers = ["Order ID", "Name", "Category", "Stock", "Order Quantity", "Price", "Discount", "Order Status", "Customer", "Payment Status", "Payment Method"]
+
+    table = tb(data, headers=headers, tablefmt="fancy_grid")
+    return table
+
+def accept_order():
+    pass

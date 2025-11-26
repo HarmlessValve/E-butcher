@@ -146,16 +146,17 @@ INSERT INTO products (product_name, product_stock, price, seller_id, category_id
 ------------------------------------------------------------
 INSERT INTO delivery_status (delivery_status) VALUES
 ('Pending'),
-('On Delivery'),
-('Delivered');
+('Sending'),
+('Received');
 
 ------------------------------------------------------------
 -- 10. ORDER STATUS
 ------------------------------------------------------------
 INSERT INTO order_status (order_status) VALUES
 ('Pending'),
-('Processed'),
-('Completed');
+('Rejected'),
+('Accepted'),
+('Cancelled');
 
 ------------------------------------------------------------
 -- 11. DELIVERIES
