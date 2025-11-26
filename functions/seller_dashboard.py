@@ -177,7 +177,7 @@ def product(username, password):
     # Convert each row tuple → list
     data = [list(row) for row in rows]
 
-    headers = ["Product ID", "Name", "Stock", "Price", "Category", "Display Product"]
+    headers = ["Product ID", "Name", "Stock", "Price", "Category", "Remove Product"]
 
     table = tb(data, headers=headers, tablefmt="fancy_grid")
     return table
@@ -259,8 +259,7 @@ def edit_product(username, password):
         # 2. Show seller's products
         # ---------------------------------------------------------
         cursor.execute("""
-            SELECT p.product_id, p.product_name, p.product_stock, p.price, 
-                   c.category_name, p.is_deleted
+            SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name, p.is_deleted
             FROM products p
             JOIN product_categories c ON p.category_id = c.category_id
             WHERE p.seller_id = %s
@@ -284,8 +283,7 @@ def edit_product(username, password):
         product_id = qu.text("Enter Product ID to edit: ").ask()
 
         cursor.execute("""
-            SELECT p.product_name, p.product_stock, p.price, 
-                   c.category_name, p.is_deleted
+            SELECT p.product_name, p.product_stock, p.price, c.category_name, p.is_deleted
             FROM products p
             JOIN product_categories c ON p.category_id = c.category_id
             WHERE p.product_id = %s AND p.seller_id = %s
@@ -322,9 +320,9 @@ def edit_product(username, password):
         ).ask()
 
         if visibility_choice.startswith("Show"):
-            new_is_deleted = True
-        elif visibility_choice.startswith("Hide"):
             new_is_deleted = False
+        elif visibility_choice.startswith("Hide"):
+            new_is_deleted = True
         else:
             new_is_deleted = old_is_deleted
 

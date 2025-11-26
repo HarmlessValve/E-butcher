@@ -70,7 +70,7 @@ CREATE TABLE products (
     price INTEGER NOT NULL,
     seller_id INTEGER NOT NULL,
     category_id INTEGER NOT NULL,
-    is_deleted BOOLEAN NOT NULL DEFAULT TRUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (seller_id) REFERENCES sellers(seller_id),
     FOREIGN KEY (category_id) REFERENCES product_categories(category_id)
 );
@@ -108,7 +108,7 @@ CREATE TABLE orders (
     payment_id INTEGER NOT NULL,
     customer_id INTEGER NOT NULL,
     delivery_id INTEGER NOT NULL,
-    is_deleted BOOLEAN NOT NULL DEFAULT TRUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (order_status_id) REFERENCES order_status(order_status_id),
     FOREIGN KEY (payment_id) REFERENCES payments(payment_id),
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
