@@ -6,10 +6,10 @@
 1. buat Seller Menu:- show account                   #menu account ✅
                     - edit account                   #menu account ✅
                     - show products                  #menu product ✅
-                    - add products                   #menu product
-                    - edit products                  #menu product
-                    - disable products               #menu product
-                    - cari product based on category #menu product (optional) 
+                    - add products                   #menu product ✅
+                    - edit products                  #menu product ✅
+                    - disable products               #menu product ✅
+                    - cari product based on category #menu product (optional) no ini gausah cape anjeeeeer
                     - show orders list               #menu order
                     - show orders status             #menu order
                     - confirm orders                 #menu order
@@ -17,3 +17,20 @@
                     - show couriers list             #menu order
                     - laporan penjualan              #menu recap
                     - laporan pengiriman             #menu recap
+
+
+25 nov
+2. buat Customer Menu:- show account           #menu account ✅
+                      - edit account           #menu account ✅
+                      - show products          #menu account ✅
+                      - order products         ###menu order 
+                      - show order
+                      - disable order
+                      - confirm order
+                      - input payment method   ###menu order
+
+3. buat Courier Menu:- show account             #menu account
+                     - edit account             #menu account
+                     - show orders              #menu delivery
+                     - take orders              #menu delivery
+                     - change status products   #menu delivery
