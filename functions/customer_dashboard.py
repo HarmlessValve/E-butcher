@@ -9,7 +9,7 @@ def dashboard(username, password):
     print(fr.BLUE + st.BRIGHT + msg + st.RESET_ALL)
 
     while True:
-        option = qu.select("dashboard menus", choices=["Account", "Orders", "Exit"]).ask()
+        option = qu.select("dashboard menus", choices=["Account", "Products","Orders", "Exit"]).ask()
 
         if option == "Account":
             result = account(username, password)
@@ -22,7 +22,21 @@ def dashboard(username, password):
                 if result == "logout":
                     print(fr.GREEN + "[+] data updated, login requiered\n" + st.RESET_ALL)
                     break
-                
+        
+        elif option == "Products":
+            result = product(username, password)
+            print(result)
+            option = qu.select("View Products", choices=["Search Products","Back"]).ask()
+            
+            if option == "Search Products":
+                category = input("Enter product category: ")
+                result = search_product(category)
+                print(result)
+                                    
+            elif option == "logout":
+                print(fr.GREEN + "[+] data updated, login requiered\n" + st.RESET_ALL)
+                break
+                    
         elif option == "Orders":
             print("Order menu... (belum dibuat)")
 
@@ -134,3 +148,55 @@ def edit_account(username, password):
     connection.close()
 
     return "logout"
+
+def product(username, password):
+    connection, cursor = conn()
+
+    cursor.execute("""
+        SELECT c.category_name, p.product_name, p.product_stock, p.price
+        FROM products p
+        JOIN product_categories c ON p.category_id = c.category_id
+    """)
+
+    rows = cursor.fetchall()
+
+    if not rows:
+        print("[-] No products found.")
+        cursor.close()
+        connection.close()
+        return
+
+    print(tb(
+        rows,
+        headers=["Category Name", "Product Name", "Stock", "Price"],
+        tablefmt="fancy_grid"
+    ))
+
+    cursor.close()
+    connection.close()
+
+def search_product(category_name):
+    connection, cursor = conn()
+    query = """
+        SELECT pc.category_name, p.product_name, p.product_stock, p.price
+        FROM product_categories pc
+        JOIN products p ON pc.category_id = p.category_id
+        WHERE pc.category_name = %s
+    """
+    cursor.execute(query, (category_name,))
+    rows = cursor.fetchall()
+
+    if not rows:
+        cursor.close()
+        connection.close()
+        return f"Tidak ada produk dalam kategori: {category_name}"
+
+    result = "\n== Produk Ditemukan ==\n" + tb(
+        rows,
+        headers=["Categories Name", "Product Name", "Product Stock", "Price"],
+        tablefmt="fancy_grid"
+    )
+
+    cursor.close()
+    connection.close()
+    return result
