@@ -10,11 +10,11 @@
                     - edit products                  #menu product ✅
                     - disable products               #menu product ✅
                     - cari product based on category #menu product (optional) no ini gausah cape anjeeeeer
-                    - show orders list               #menu order
-                    - show orders status             #menu order
+                    - show orders list               #menu order ✅
+                    - show orders status             #menu order ✅
                     - confirm orders                 #menu order
                     - update status orders           #menu order
-                    - show couriers list             #menu order
+                    - show couriers list             #menu order (ini gausah)
                     - laporan penjualan              #menu recap
                     - laporan pengiriman             #menu recap
 
@@ -25,6 +25,7 @@
                       - show products          #menu account ✅
                       - order products         ###menu order 
                       - show order
+                      - search product based on category (optional) kayanya taruh sini ajah
                       - disable order
                       - confirm order
                       - input payment method   ###menu order

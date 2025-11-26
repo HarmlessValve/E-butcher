@@ -9,7 +9,7 @@ def dashboard(username, password):
     print(fr.BLUE + st.BRIGHT + msg + st.RESET_ALL)
 
     while True:
-        option = qu.select("dashboard menus", choices=["Account", "Orders", "Exit"]).ask()
+        option = qu.select("dashboard menus", choices=["Account", "Orders", "Payment" "Exit"]).ask()
 
         if option == "Account":
             result = account(username, password)
@@ -24,9 +24,11 @@ def dashboard(username, password):
                     break
                 
         elif option == "Orders":
-            print("Order menu... (belum dibuat)")
+            product = products()
+            print(product + "\n")
+            option = qu.select("Orders Menu", choices=["Make Order","Cancel Order", "Back"]).ask()
 
-        elif option == "Recap":
+        elif option == "Payment":
             print("Recap menu... (belum dibuat)")
 
         elif option == "Exit":
@@ -134,3 +136,29 @@ def edit_account(username, password):
     connection.close()
 
     return "logout"
+
+def products():
+    connection, cursor = conn()
+
+    query = """
+        SELECT p.product_id, p.product_name, p.product_stock, p.price, pc.category_name 
+        FROM products p 
+        JOIN product_categories pc ON p.category_id = pc.category_id
+        WHERE p.is_deleted = false 
+        ORDER BY p.product_id
+    """
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not rows:
+        return fr.YELLOW + "[-] Data products not found." + st.RESET_ALL
+    
+    data = [list(row) for row in rows]
+
+    headers = ["Product ID", "Name", "Stock", "Price", "Category"]
+
+    table = tb(data, headers=headers, tablefmt="fancy_grid")
+    return table

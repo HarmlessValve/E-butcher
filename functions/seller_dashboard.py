@@ -10,7 +10,7 @@ def dashboard(username, password):
 
     while True:
         option = qu.select("dashboard menus", choices=["Account", "Products", "Orders", "Recap", "Exit"]).ask()
-
+        
         if option == "Account":
             result = account(username, password)
             print(result + "\n")
@@ -22,7 +22,6 @@ def dashboard(username, password):
                 if result == "logout":
                     print(fr.GREEN + "[+] data updated, login requiered\n" + st.RESET_ALL)
                     break
-
         elif option == "Products":
             products = product(username, password)
             print(products)
@@ -30,7 +29,6 @@ def dashboard(username, password):
                 print(fr.YELLOW + "[-] data products not found\n" + st.RESET_ALL)
             
             option = qu.select("Products Management", choices=["Add Products","Edit Products", "Back"]).ask()
-
             if option == "Add Products":
                 
                 product_name = qu.text("Product Name: ").ask()
@@ -52,12 +50,26 @@ def dashboard(username, password):
             option = qu.select("Orders Management", choices=["Accept Orders","Reject Orders", "Back"]).ask()
             
             if option == "Accept Orders":
-                pass
+                accept_order(username, password)
             elif option == "Reject Orders":
-                pass
+                reject_order(username, password)
+                
         elif option == "Recap":
-            print("Recap menu... (belum dibuat)")
-
+            
+            option = qu.select("Recap", choices=["Recap Order","Recap Delivery", "Back"]).ask()
+            
+            if option == "Recap Order":
+                recap = recap_order(username, password)
+                print(recap)
+                if not recap:
+                    print(fr.YELLOW + "[-] data recap not found\n" + st.RESET_ALL)
+                    
+            elif option == "Recap Delivery":
+                recap = recap_delivery(username, password)
+                print(recap)
+                if not recap:
+                    print(fr.YELLOW + "[-] data recap not found\n" + st.RESET_ALL)
+                
         elif option == "Exit":
             print(fr.YELLOW + "[!] Exiting Dashboard..." + st.RESET_ALL)
             break
@@ -244,7 +256,7 @@ def add_product(username, password, product_name, stock, price, category_name):
         cursor.close()
         connection.close()
         return False
-    
+
 def edit_product(username, password):
     connection, cursor = conn()
 
@@ -282,7 +294,7 @@ def edit_product(username, password):
 
         print(tb(
             rows,
-            headers=["Product ID", "Name", "Stock", "Price", "Category", "Display Product"],
+            headers=["Product ID", "Name", "Stock", "Price", "Category", "Remove Product"],
             tablefmt="fancy_grid"
         ))
 
@@ -320,7 +332,7 @@ def edit_product(username, password):
         # 5. NEW — select input for is_deleted (uses choices)
         # ---------------------------------------------------------
         visibility_choice = qu.select(
-            f"Product Visibility (current: {'Showed' if old_is_deleted else 'Hidden'}): ",
+            f"Product Visibility (current: {'Hidden' if old_is_deleted else 'Show'}): ",
             choices=[
                 "Show",
                 "Hide",
@@ -389,7 +401,7 @@ def orders(username, password):
     JOIN order_status os ON o.order_status_id = os.order_status_id
     JOIN payments py ON o.payment_id = py.payment_id
     JOIN payment_methods pm ON py.method_id = pm.method_id
-    WHERE s.username = %s AND s.password = %s AND o.is_deleted = 'false'
+    WHERE s.username = %s AND s.password = %s AND o.is_deleted = false
     ORDER BY c.customer_name
     """
     cursor.execute(query, (username, password))
@@ -408,5 +420,176 @@ def orders(username, password):
     table = tb(data, headers=headers, tablefmt="fancy_grid")
     return table
 
-def accept_order():
-    pass
+def accept_order(username, password):
+    connection, cursor = conn()
+    
+    try:
+        cursor.execute(
+            "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
+            (username, password)
+        )
+        seller = cursor.fetchone()
+        
+        if not seller:
+            print("[-] Seller authentication failed.")
+            return False
+
+        seller_id = seller[0]
+
+        order_id = qu.text("Enter Order ID to mark as accepted: ").ask()
+
+        cursor.execute("""
+            SELECT o.order_id
+            FROM orders o
+            JOIN order_details od ON o.order_id = od.order_id
+            JOIN products p ON od.product_id = p.product_id
+            WHERE o.order_id = %s AND p.seller_id = %s AND o.is_deleted = false
+        """, (order_id, seller_id))
+
+        valid = cursor.fetchone()
+
+        if not valid:
+            print("[-] Order not found")
+            return False
+
+        cursor.execute("""
+            UPDATE orders
+            SET order_status_id = 3
+            WHERE order_id = %s
+        """, (order_id,))
+
+        connection.commit()
+        print(fr.GREEN + "\n[+] Order marked as accepted!" + st.RESET_ALL)
+        return True
+
+    except Exception:
+        connection.rollback()
+        print(fr.RED + "\n[-] invalid Input syntax" + st.RESET_ALL)
+        return False
+
+    finally:
+        cursor.close()
+        connection.close()
+
+def reject_order(username, password):
+    connection, cursor = conn()
+    
+    try:
+        cursor.execute(
+            "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
+            (username, password)
+        )
+        seller = cursor.fetchone()
+        
+        if not seller:
+            print("[-] Seller authentication failed.")
+            return False
+
+        seller_id = seller[0]
+
+        order_id = qu.text("Enter Order ID to mark as rejected: ").ask()
+
+        cursor.execute("""
+            SELECT o.order_id
+            FROM orders o
+            JOIN order_details od ON o.order_id = od.order_id
+            JOIN products p ON od.product_id = p.product_id
+            WHERE o.order_id = %s AND p.seller_id = %s AND o.is_deleted = false
+        """, (order_id, seller_id))
+
+        valid = cursor.fetchone()
+
+        if not valid:
+            print("[-] Order not found")
+            return False
+
+        cursor.execute("""
+            UPDATE orders
+            SET order_status_id = 2
+            WHERE order_id = %s
+        """, (order_id,))
+
+        connection.commit()
+        print(fr.GREEN + "\n[+] Order marked as rejected" + st.RESET_ALL)
+        return True
+
+    except Exception:
+        connection.rollback()
+        print(fr.RED + "\n[-] invalid Input syntax" + st.RESET_ALL)
+        return False
+
+    finally:
+        cursor.close()
+        connection.close()
+
+def recap_order(username, password):
+    connection, cursor = conn()
+
+    query = """
+            SELECT o.order_date, p.product_name, pc.category_name, od.quantity, p.price, od.discount, 
+            p.price - (p.price * od.discount / 100) as discounted_price,
+            os.order_status, c.customer_name, py.payment_status, pm.method_name
+            FROM products p 
+            JOIN product_categories pc ON p.category_id = pc.category_id 
+            JOIN sellers s ON p.seller_id = s.seller_id
+            JOIN order_details od ON p.product_id = od.product_id
+            JOIN orders o ON od.order_id = o.order_id
+            JOIN customers c ON o.customer_id = c.customer_id
+            JOIN order_status os ON o.order_status_id = os.order_status_id
+            JOIN payments py ON o.payment_id = py.payment_id
+            JOIN payment_methods pm ON py.method_id = pm.method_id
+            WHERE s.username = %s AND s.password = %s AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
+            ORDER BY c.customer_name
+    """
+    cursor.execute(query, (username, password))
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not rows:
+        return fr.YELLOW + "[-] Data orders not found." + st.RESET_ALL
+
+    data = [list(row) for row in rows]
+
+    headers = ["Order Date", "Name", "Category", "Order Quantity", "Price", "Discount", "Discounted Price", "Order Status", "Customer", "Payment Status", "Payment Method"]
+
+    table = tb(data, headers=headers, tablefmt="fancy_grid")
+    return table
+
+def recap_delivery(username, password):
+    connection, cursor = conn()
+
+    query = """
+            SELECT o.order_date, p.product_name, pc.category_name, od.quantity,
+            os.order_status, c.customer_name, ds.delivery_status, cr.courier_name
+            FROM products p 
+            JOIN product_categories pc ON p.category_id = pc.category_id 
+            JOIN sellers s ON p.seller_id = s.seller_id
+            JOIN order_details od ON p.product_id = od.product_id
+            JOIN orders o ON od.order_id = o.order_id
+            JOIN customers c ON o.customer_id = c.customer_id
+            JOIN order_status os ON o.order_status_id = os.order_status_id
+            JOIN payments py ON o.payment_id = py.payment_id
+            JOIN payment_methods pm ON py.method_id = pm.method_id
+			JOIN deliveries de ON o.delivery_id = de.delivery_id
+			JOIN delivery_status ds ON de.delivery_status_id = ds.delivery_status_id
+			JOIN couriers cr ON de.courier_id = cr.courier_id
+            WHERE s.username = 'ta' AND s.password = 'ta' AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
+            ORDER BY c.customer_name
+    """
+    cursor.execute(query, (username, password))
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not rows:
+        return fr.YELLOW + "[-] Data orders not found." + st.RESET_ALL
+
+    data = [list(row) for row in rows]
+
+    headers = ["Order Date", "Name", "Category", "Order Quantity", "Order Status", "Customer", "Delivery Status", "Courier"]
+
+    table = tb(data, headers=headers, tablefmt="fancy_grid")
+    return table
