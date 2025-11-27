@@ -6,6 +6,7 @@ from functions.login import seller_login, customer_login, courier_login
 from functions.register import (register_seller,register_customer,register_courier,username_exists)
 from functions.seller_dashboard import dashboard as seller_dashboard
 from functions.customer_dashboard import dashboard as customer_dashboard
+from functions.courier_dashboard import dashboard as courier_dashboard
 
 
 # ========================= UTILS =========================
@@ -78,6 +79,7 @@ while True:
             password = qu.password("Enter Password:").ask()
             if courier_login(username, password):
                 print(fr.GREEN + "[+] Courier login successful!\n" + st.RESET_ALL)
+                courier_dashboard(username, password)
             else:
                 print(fr.RED + "[-] Invalid username or password!\n" + st.RESET_ALL)
         else:

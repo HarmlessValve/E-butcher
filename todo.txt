@@ -27,11 +27,11 @@
                       - show order                           ✅
                       - search product based on category (optional) moh gausah
                       - disable order                        ✅
-                      - confirm delivery                        
-                      - input payment method   ###menu order
+                      - confirm delivery                     ✅ 
+                      - input payment method   ###menu order ✅
 
-3. buat Courier Menu:- show account             #menu account
-                     - edit account             #menu account
+3. buat Courier Menu:- show account             #menu account ✅
+                     - edit account             #menu account ✅
                      - show orders              #menu delivery
                      - take orders              #menu delivery
                      - change status products   #menu delivery

@@ -77,12 +77,12 @@ CREATE TABLE products (
 
 CREATE TABLE delivery_status(
     delivery_status_id SERIAL PRIMARY KEY,
-    delivery_status VARCHAR(64) NOT NULL
+    delivery_status VARCHAR(64) NOT NULL DEFAULT 'Pending'
 );
 
 CREATE TABLE order_status(
     order_status_id SERIAL PRIMARY KEY,
-    order_status VARCHAR(64) NOT NULL
+    order_status VARCHAR(64) NOT NULL DEFAULT 'Pending'
 );
 
 CREATE TABLE deliveries (
