@@ -402,7 +402,7 @@ def orders(username, password):
     JOIN payments py ON o.payment_id = py.payment_id
     JOIN payment_methods pm ON py.method_id = pm.method_id
     WHERE s.username = %s AND s.password = %s AND o.is_deleted = false
-    ORDER BY c.customer_name
+    ORDER BY o.order_id
     """
     cursor.execute(query, (username, password))
     rows = cursor.fetchall()
@@ -424,6 +424,7 @@ def accept_order(username, password):
     connection, cursor = conn()
     
     try:
+        # Validasi seller
         cursor.execute(
             "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
             (username, password)
@@ -436,22 +437,57 @@ def accept_order(username, password):
 
         seller_id = seller[0]
 
+        # Input order ID
         order_id = qu.text("Enter Order ID to mark as accepted: ").ask()
 
+        # Cek bahwa order milik produk seller
         cursor.execute("""
             SELECT o.order_id
             FROM orders o
             JOIN order_details od ON o.order_id = od.order_id
             JOIN products p ON od.product_id = p.product_id
-            WHERE o.order_id = %s AND p.seller_id = %s AND o.is_deleted = false
+            WHERE o.order_id = %s 
+            AND p.seller_id = %s 
+            AND o.is_deleted = false
+            LIMIT 1
         """, (order_id, seller_id))
 
         valid = cursor.fetchone()
 
         if not valid:
-            print("[-] Order not found")
+            print(fr.RED + "[-] Order not found or does not belong to your products." + st.RESET_ALL)
             return False
 
+        # ===========================================================
+        # 1. Ambil SEMUA produk & quantity dalam order tersebut
+        # ===========================================================
+        cursor.execute("""
+            SELECT p.product_id, od.quantity
+            FROM order_details od
+            JOIN products p ON od.product_id = p.product_id
+            WHERE od.order_id = %s
+            AND p.seller_id = %s
+        """, (order_id, seller_id))
+
+        items = cursor.fetchall()
+
+        if not items:
+            print(fr.RED + "[-] No products found for this order." + st.RESET_ALL)
+            return False
+
+        # ===========================================================
+        # 2. Kurangi stok produk per item
+        # ===========================================================
+        for product_id, qty in items:
+            cursor.execute("""
+                UPDATE products
+                SET product_stock = product_stock - %s
+                WHERE product_id = %s
+            """, (qty, product_id))
+
+        # ===========================================================
+        # 3. Update status order menjadi accepted (3)
+        # ===========================================================
         cursor.execute("""
             UPDATE orders
             SET order_status_id = 3
@@ -459,12 +495,12 @@ def accept_order(username, password):
         """, (order_id,))
 
         connection.commit()
-        print(fr.GREEN + "\n[+] Order marked as accepted!" + st.RESET_ALL)
+        print(fr.GREEN + "\n[+] Order marked as accepted and stock updated!" + st.RESET_ALL)
         return True
 
-    except Exception:
+    except Exception as e:
         connection.rollback()
-        print(fr.RED + "\n[-] invalid Input syntax" + st.RESET_ALL)
+        print(fr.RED + f"\n[-] Error: {e}" + st.RESET_ALL)
         return False
 
     finally:
