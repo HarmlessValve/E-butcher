@@ -114,7 +114,7 @@ INSERT INTO products (product_name, product_stock, price, seller_id, category_id
 -- 9. DELIVERY STATUS
 ------------------------------------------------------------
 INSERT INTO delivery_status (delivery_status) VALUES
-('Pending'),
+('Ready'),
 ('Sending'),
 ('Received');
 

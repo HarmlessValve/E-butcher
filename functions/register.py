@@ -1,4 +1,5 @@
 from functions.connection import conn
+import questionary as qu
 
 
 def username_exists(table, username):
@@ -18,27 +19,49 @@ def username_exists(table, username):
         print("Error:", e)
         return True
 
+def choose_district():
+    connection, cursor = conn()
 
-def register_seller(name, phone, username, password, street, district):
+    cursor.execute("SELECT district_id, district_name FROM districts ORDER BY district_id ASC")
+    district_data = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not district_data:
+        print("[-] No districts found.")
+        return None
+
+    district_names = [d[1] for d in district_data]
+
+    chosen_name = qu.select(
+        "Select District:",
+        choices=district_names
+    ).ask()
+
+    district_id = next(d[0] for d in district_data if d[1] == chosen_name)
+    return district_id
+
+def register_seller(name, phone, username, password, street):
     try:
+        # district param TIDAK dipakai
+        district_id = choose_district()
+        if district_id is None:
+            return False
+
         connection, cursor = conn()
 
         query = """
-            WITH d AS (
-                INSERT INTO districts (district_name)
-                VALUES (%s)
-                RETURNING district_id
-            ),
-            a AS (
+            WITH a AS (
                 INSERT INTO addresses (street_name, district_id)
-                VALUES (%s, (SELECT district_id FROM d))
+                VALUES (%s, %s)
                 RETURNING address_id
             )
             INSERT INTO sellers (seller_name, phone_num, username, password, address_id)
             VALUES (%s, %s, %s, %s, (SELECT address_id FROM a));
         """
-        
-        cursor.execute(query, (district,street,name,phone,username,password))
+
+        cursor.execute(query, (street, district_id, name, phone, username, password))
         connection.commit()
         
         cursor.close()
@@ -49,27 +72,26 @@ def register_seller(name, phone, username, password, street, district):
         print("Error:", e)
         return False
 
-
-def register_customer(name, phone, username, password, street, district):
+def register_customer(name, phone, username, password, street):
     try:
+        # district param TIDAK dipakai
+        district_id = choose_district()
+        if district_id is None:
+            return False
+
         connection, cursor = conn()
 
         query = """
-            WITH d AS (
-                INSERT INTO districts (district_name)
-                VALUES (%s)
-                RETURNING district_id
-            ),
-            a AS (
+            WITH a AS (
                 INSERT INTO addresses (street_name, district_id)
-                VALUES (%s, (SELECT district_id FROM d))
+                VALUES (%s, %s)
                 RETURNING address_id
             )
             INSERT INTO customers (customer_name, phone_num, username, password, address_id)
             VALUES (%s, %s, %s, %s, (SELECT address_id FROM a));
         """
 
-        cursor.execute(query, (district,street,name, phone, username, password))
+        cursor.execute(query, (street, district_id, name, phone, username, password))
         connection.commit()
 
         cursor.close()

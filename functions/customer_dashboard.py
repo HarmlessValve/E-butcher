@@ -25,7 +25,15 @@ def dashboard(username, password):
                     break
                 
         elif option == "Orders":
-            product = products()
+            seller_id = sellers()
+            print(seller_id)
+            print()
+            
+            product = products(seller_id)
+            
+            if product == "back":
+                return dashboard(username, password)
+            
             print(product + "\n")
             option = qu.select("Orders Menu", choices=["Make Order","Cancel Order", "Back"]).ask()
             
@@ -70,69 +78,95 @@ def account(username, password):
 def edit_account(username, password):
     connection, cursor = conn()
 
-    # Ambil data user
+    # --------------------------------------------------------
+    # AMBIL DATA CUSTOMER
+    # --------------------------------------------------------
     query = """
         SELECT c.customer_name, c.phone_num, c.username, c.password,
-        a.address_id, a.street_name, d.district_name
+               a.address_id, a.street_name, a.district_id
         FROM customers c
         JOIN addresses a ON c.address_id = a.address_id
-        JOIN districts d ON a.district_id = d.district_id
-        WHERE c.username = %s AND c.password = %s
+        WHERE c.username = %s AND c.password = %s AND c.is_deleted = FALSE
     """
     cursor.execute(query, (username, password))
     data = cursor.fetchone()
 
     if not data:
-        print("[-] Data not found.")
-        return 
-    
-    customer_name, phone_num, old_username, old_password, address_id, street_name, district_name = data
+        print(fr.RED + "[-] Data not found." + st.RESET_ALL)
+        return
 
+    customer_name, phone_num, old_username, old_password, address_id, street_name, district_id = data
+
+    # --------------------------------------------------------
+    # TANYA DELETE ACCOUNT?
+    # --------------------------------------------------------
+    delete_choice = qu.select(
+        "Do you want to delete your account?",
+        choices=["No", "Yes"]
+    ).ask()
+
+    if delete_choice == "Yes":
+        cursor.execute("""
+            UPDATE customers
+            SET is_deleted = TRUE
+            WHERE username = %s AND password = %s
+        """, (old_username, old_password))
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        print(fr.GREEN + "[+] Account deleted successfully." + st.RESET_ALL)
+        return "logout"
+
+    # --------------------------------------------------------
+    # EDIT ACCOUNT
+    # --------------------------------------------------------
     print(fr.YELLOW + "[!] Edit Account" + st.RESET_ALL)
-    print("press Enter for non-updated datas\n")
+    print("Press Enter for non-updated fields.\n")
 
-    # Input baru
     new_name = qu.text(f"Customer Name ({customer_name}): ").ask() or customer_name
     new_phone = qu.text(f"Phone Number ({phone_num}): ").ask() or phone_num
     new_username = qu.text(f"Username ({old_username}): ").ask() or old_username
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
     new_street = qu.text(f"Street Name ({street_name}): ").ask() or street_name
-    new_district = qu.text(f"District Name ({district_name}): ").ask() or district_name
 
-    # ---------------------------------------------------------
-    # UPDATE address (POSTGRESQL version)
-    # ---------------------------------------------------------
-    update_address = """
-        UPDATE addresses AS a
-        SET street_name = %s
-        FROM districts AS d
-        WHERE a.address_id = %s
-        AND a.district_id = d.district_id
-    """
-    cursor.execute(update_address, (new_street, address_id))
+    # --------------------------------------------------------
+    # DISTRICT SELECT (SAMA PERSIS KAYAK SELLER)
+    # --------------------------------------------------------
+    cursor.execute("SELECT district_id, district_name FROM districts ORDER BY district_id ASC")
+    district_data = cursor.fetchall()
 
-    # UPDATE district_name (harus query terpisah)
-    update_district = """
-        UPDATE districts
-        SET district_name = %s
-        WHERE district_id = (
-            SELECT district_id FROM addresses WHERE address_id = %s
-        )
-    """
-    cursor.execute(update_district, (new_district, address_id))
+    district_names = [d[1] for d in district_data]
+    current_district_name = next(d[1] for d in district_data if d[0] == district_id)
 
-    # ---------------------------------------------------------
-    # UPDATE seller data
-    # ---------------------------------------------------------
-    update_customer = """
+    new_district_name = qu.select(
+        f"District (Current: {current_district_name})",
+        choices=district_names
+    ).ask()
+
+    new_district_id = next(d[0] for d in district_data if d[1] == new_district_name)
+
+    # --------------------------------------------------------
+    # UPDATE ADDRESS (street + district_id)
+    # --------------------------------------------------------
+    cursor.execute("""
+        UPDATE addresses
+        SET street_name = %s, district_id = %s
+        WHERE address_id = %s
+    """, (new_street, new_district_id, address_id))
+
+    # --------------------------------------------------------
+    # UPDATE CUSTOMER
+    # --------------------------------------------------------
+    cursor.execute("""
         UPDATE customers
         SET customer_name = %s,
             phone_num = %s,
             username = %s,
             password = %s
         WHERE username = %s AND password = %s
-    """
-    cursor.execute(update_customer, (
+    """, (
         new_name, new_phone, new_username, new_password,
         old_username, old_password
     ))
@@ -141,17 +175,17 @@ def edit_account(username, password):
     cursor.close()
     connection.close()
 
+    print(fr.GREEN + "[+] Account updated successfully!" + st.RESET_ALL)
     return "logout"
 
-def products():
+def sellers():
     connection, cursor = conn()
 
     query = """
-        SELECT p.product_id, p.product_name, p.product_stock, p.price, pc.category_name 
-        FROM products p 
-        JOIN product_categories pc ON p.category_id = pc.category_id
-        WHERE p.is_deleted = false 
-        ORDER BY p.product_id
+        SELECT seller_id, seller_name, phone_num
+        FROM sellers
+        WHERE is_deleted = FALSE
+        ORDER BY seller_id
     """
     cursor.execute(query)
     rows = cursor.fetchall()
@@ -160,10 +194,45 @@ def products():
     connection.close()
 
     if not rows:
-        return fr.YELLOW + "[-] Data products not found." + st.RESET_ALL
-    
-    data = [list(row) for row in rows]
+        print(fr.YELLOW + "[-] Data sellers not found." + st.RESET_ALL)
+        return "back"
 
+    data = [list(row) for row in rows]
+    headers = ["Seller ID", "Name", "Phone Number"]
+
+    print(tb(data, headers=headers, tablefmt="fancy_grid"))
+
+    while True:
+        seller_id = qu.text("Enter Seller ID to view products:").ask()
+
+        try:
+            seller_id = int(seller_id)
+            return seller_id
+        except:
+            print(fr.RED + "[!] Seller ID must be a number!" + st.RESET_ALL)
+
+def products(seller_id):
+    connection, cursor = conn()
+
+    query = """
+        SELECT p.product_id, p.product_name, p.product_stock, p.price, pc.category_name 
+        FROM products p 
+        JOIN product_categories pc ON p.category_id = pc.category_id
+        JOIN sellers s ON p.seller_id = s.seller_id
+        WHERE p.is_deleted = FALSE AND s.seller_id = %s
+        ORDER BY p.product_id
+    """
+    cursor.execute(query, (seller_id,))
+    rows = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    if not rows:
+        print(fr.YELLOW + "[-] no products in this seller." + st.RESET_ALL)
+        return "back"
+
+    data = [list(row) for row in rows]
     headers = ["Product ID", "Name", "Stock", "Price", "Category"]
 
     table = tb(data, headers=headers, tablefmt="fancy_grid")
@@ -387,9 +456,6 @@ def cancel_order(username, password):
 def payment(username, password):
     connection, cursor = conn()
 
-    # ------------------------------------------------------
-    # VERIFIKASI CUSTOMER
-    # ------------------------------------------------------
     cursor.execute("""
         SELECT customer_id 
         FROM customers 
@@ -403,22 +469,21 @@ def payment(username, password):
 
     customer_id = customer[0]
 
-    # ------------------------------------------------------
-    # TAMPILKAN ORDER YANG BELUM DIBAYAR
-    # ------------------------------------------------------
     cursor.execute("""
         SELECT 
             o.order_id,
             o.order_date,
+            pd.product_name,
             p.payment_status,
             SUM(od.quantity * od.price) AS total_price
         FROM orders o
         JOIN payments p ON o.payment_id = p.payment_id
         JOIN order_details od ON o.order_id = od.order_id
+		JOIN products pd ON pd.product_id = od.product_id
         WHERE o.customer_id = %s 
             AND o.is_deleted = FALSE
             AND p.payment_status = 'N'
-        GROUP BY o.order_id, o.order_date, p.payment_status
+        GROUP BY o.order_id, o.order_date, p.payment_status, pd.product_name
         ORDER BY o.order_id ASC
     """, (customer_id,))
 
@@ -434,13 +499,10 @@ def payment(username, password):
         print(fr.YELLOW + "\n[!] You have no unpaid orders." + st.RESET_ALL)
         return False
 
-    # ------------------------------------------------------
-    # INPUT ORDER ID
-    # ------------------------------------------------------
     order_id = qu.text("\nEnter Order ID to process payment: ").ask()
 
     if not order_id.strip():
-        print(fr.YELLOW + "[!] Cancelled." + st.RESET_ALL)
+        print(fr.YELLOW + "[!] Cancelled.\n" + st.RESET_ALL)
         return False
 
     cursor.execute("""
@@ -457,14 +519,11 @@ def payment(username, password):
 
     _, payment_id, payment_status = order
 
-    # Sudah dibayar
+
     if payment_status == "Y":
         print(fr.GREEN + "[!] This order is already paid." + st.RESET_ALL)
         return True
 
-    # ------------------------------------------------------
-    # METODE PEMBAYARAN
-    # ------------------------------------------------------
     method = qu.select(
         "Select payment method:",
         choices=["Transfer", "COD", "Cancel"]
@@ -474,9 +533,6 @@ def payment(username, password):
         print(fr.YELLOW + "\n[!] Payment cancelled." + st.RESET_ALL)
         return False
 
-    # ------------------------------------------------------
-    # TRANSFER
-    # ------------------------------------------------------
     if method == "Transfer":
         cursor.execute("""
             UPDATE payments
@@ -488,18 +544,11 @@ def payment(username, password):
         print(fr.GREEN + "\n[+] Payment completed via Transfer!" + st.RESET_ALL)
         return True
 
-    # ------------------------------------------------------
-    # COD
-    # ------------------------------------------------------
     if method == "COD":
         cod_status = qu.select(
             "COD Status:",
-            choices=["Received", "Back", "Cancel"]
+            choices=["Received", "Back"]
         ).ask()
-
-        if cod_status == "Cancel":
-            print(fr.YELLOW + "[!] Payment cancelled." + st.RESET_ALL)
-            return False
 
         if cod_status == "Received":
             cursor.execute("""
@@ -518,7 +567,7 @@ def payment(username, password):
                 WHERE payment_id = %s
             """, (payment_id,))
             connection.commit()
-            print(fr.YELLOW + "\n[!] COD returned. Payment remains UNPAID." + st.RESET_ALL)
+            print(fr.YELLOW + "\n[!] COD returned. Payment remains unpaid." + st.RESET_ALL)
             return False
 
     return False

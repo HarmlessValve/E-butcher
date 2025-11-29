@@ -105,24 +105,47 @@ def edit_account(username, password):
 
     # Ambil data user
     query = """
-        SELECT s.seller_name, s.phone_num, s.username, s.password,
-        a.address_id, a.street_name, d.district_name
+        SELECT s.seller_name, s.phone_num, s.username, s.password, a.address_id, a.street_name, a.district_id
         FROM sellers s
         JOIN addresses a ON s.address_id = a.address_id
-        JOIN districts d ON a.district_id = d.district_id
-        WHERE s.username = %s AND s.password = %s
+        WHERE s.username = %s AND s.password = %s AND s.is_deleted = FALSE
     """
     cursor.execute(query, (username, password))
     data = cursor.fetchone()
 
     if not data:
-        print("[-] Data not found.")
-        return 
-    
-    seller_name, phone_num, old_username, old_password, address_id, street_name, district_name = data
+        print(fr.RED + "[-] Data not found." + st.RESET_ALL)
+        return
 
+    seller_name, phone_num, old_username, old_password, address_id, street_name, district_id = data
+
+    # --------------------------------------------------------
+    # TANYA DELETE ACCOUNT?
+    # --------------------------------------------------------
+    delete_choice = qu.select(
+        "Do you want to delete your account?",
+        choices=["No", "Yes"]
+    ).ask()
+
+    if delete_choice == "Yes":
+        cursor.execute("""
+            UPDATE sellers
+            SET is_deleted = TRUE
+            WHERE username = %s AND password = %s
+        """, (old_username, old_password))
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        print(fr.GREEN + "[+] Account deleted successfully." + st.RESET_ALL)
+        return "logout"
+
+    # --------------------------------------------------------
+    # EDIT ACCOUNT
+    # --------------------------------------------------------
     print(fr.YELLOW + "[!] Edit Account" + st.RESET_ALL)
-    print("press Enter for non-updated datas\n")
+    print("Press Enter for non-updated fields.\n")
 
     # Input baru
     new_name = qu.text(f"Seller Name ({seller_name}): ").ask() or seller_name
@@ -130,42 +153,44 @@ def edit_account(username, password):
     new_username = qu.text(f"Username ({old_username}): ").ask() or old_username
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
     new_street = qu.text(f"Street Name ({street_name}): ").ask() or street_name
-    new_district = qu.text(f"District Name ({district_name}): ").ask() or district_name
 
-    # ---------------------------------------------------------
-    # UPDATE address (POSTGRESQL version)
-    # ---------------------------------------------------------
-    update_address = """
-        UPDATE addresses AS a
-        SET street_name = %s
-        FROM districts AS d
-        WHERE a.address_id = %s
-        AND a.district_id = d.district_id
-    """
-    cursor.execute(update_address, (new_street, address_id))
+    # --------------------------------------------------------
+    # DISTRICT PAKAI SELECT
+    # --------------------------------------------------------
+    cursor.execute("SELECT district_id, district_name FROM districts ORDER BY district_id ASC")
+    district_data = cursor.fetchall()
 
-    # UPDATE district_name (harus query terpisah)
-    update_district = """
-        UPDATE districts
-        SET district_name = %s
-        WHERE district_id = (
-            SELECT district_id FROM addresses WHERE address_id = %s
-        )
-    """
-    cursor.execute(update_district, (new_district, address_id))
+    district_names = [d[1] for d in district_data]
+    current_district_name = next(d[1] for d in district_data if d[0] == district_id)
 
-    # ---------------------------------------------------------
-    # UPDATE seller data
-    # ---------------------------------------------------------
-    update_seller = """
+    new_district_name = qu.select(
+        f"District (Current: {current_district_name})",
+        choices=district_names
+    ).ask()
+
+    # Cari district_id baru
+    new_district_id = next(d[0] for d in district_data if d[1] == new_district_name)
+
+    # --------------------------------------------------------
+    # UPDATE ADDRESS
+    # --------------------------------------------------------
+    cursor.execute("""
+        UPDATE addresses
+        SET street_name = %s, district_id = %s
+        WHERE address_id = %s
+    """, (new_street, new_district_id, address_id))
+
+    # --------------------------------------------------------
+    # UPDATE SELLER
+    # --------------------------------------------------------
+    cursor.execute("""
         UPDATE sellers
         SET seller_name = %s,
             phone_num = %s,
             username = %s,
             password = %s
         WHERE username = %s AND password = %s
-    """
-    cursor.execute(update_seller, (
+    """, (
         new_name, new_phone, new_username, new_password,
         old_username, old_password
     ))
@@ -174,6 +199,7 @@ def edit_account(username, password):
     cursor.close()
     connection.close()
 
+    print(fr.GREEN + "[+] Account updated successfully!" + st.RESET_ALL)
     return "logout"
 
 def product(username, password):
@@ -424,60 +450,79 @@ def accept_order(username, password):
     connection, cursor = conn()
     
     try:
-        # Validasi seller
-        cursor.execute(
-            "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
-            (username, password)
-        )
+        # ---------------------------------------------------------
+        # VALIDATE SELLER
+        # ---------------------------------------------------------
+        cursor.execute("""
+            SELECT seller_id 
+            FROM sellers 
+            WHERE username = %s AND password = %s AND is_deleted = FALSE
+        """, (username, password))
+
         seller = cursor.fetchone()
-        
+
         if not seller:
-            print("[-] Seller authentication failed.")
+            print(fr.RED + "[-] Seller authentication failed." + st.RESET_ALL)
             return False
 
         seller_id = seller[0]
 
-        # Input order ID
+        # Input
         order_id = qu.text("Enter Order ID to mark as accepted: ").ask()
 
-        # Cek bahwa order milik produk seller
+        if not order_id.isdigit():
+            print(fr.RED + "[-] Invalid Order ID." + st.RESET_ALL)
+            return False
+
+        order_id = int(order_id)
+
+        # ---------------------------------------------------------
+        # CHECK IF THE ORDER BELONGS TO THIS SELLER ONLY
+        # ---------------------------------------------------------
         cursor.execute("""
-            SELECT o.order_id
-            FROM orders o
-            JOIN order_details od ON o.order_id = od.order_id
+            SELECT COUNT(*)
+            FROM order_details od
             JOIN products p ON od.product_id = p.product_id
-            WHERE o.order_id = %s 
-            AND p.seller_id = %s 
-            AND o.is_deleted = false
-            LIMIT 1
+            WHERE od.order_id = %s
+              AND p.seller_id != %s       -- Ada barang dari seller lain
         """, (order_id, seller_id))
 
-        valid = cursor.fetchone()
+        other_seller = cursor.fetchone()[0]
 
-        if not valid:
+        if other_seller > 0:
+            print(fr.RED + "[-] Order contains items from another seller!" + st.RESET_ALL)
+            return False
+
+        # ---------------------------------------------------------
+        # CHECK ORDER EXISTS AND BELONGS TO THIS SELLER
+        # ---------------------------------------------------------
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM order_details od
+            JOIN products p ON od.product_id = p.product_id
+            WHERE od.order_id = %s
+              AND p.seller_id = %s
+        """, (order_id, seller_id))
+
+        seller_items = cursor.fetchone()[0]
+
+        if seller_items == 0:
             print(fr.RED + "[-] Order not found or does not belong to your products." + st.RESET_ALL)
             return False
 
-        # ===========================================================
-        # 1. Ambil SEMUA produk & quantity dalam order tersebut
-        # ===========================================================
+        # ---------------------------------------------------------
+        # GET all products & quantity for stock update
+        # ---------------------------------------------------------
         cursor.execute("""
             SELECT p.product_id, od.quantity
             FROM order_details od
             JOIN products p ON od.product_id = p.product_id
-            WHERE od.order_id = %s
-            AND p.seller_id = %s
+            WHERE od.order_id = %s AND p.seller_id = %s
         """, (order_id, seller_id))
 
         items = cursor.fetchall()
 
-        if not items:
-            print(fr.RED + "[-] No products found for this order." + st.RESET_ALL)
-            return False
-
-        # ===========================================================
-        # 2. Kurangi stok produk per item
-        # ===========================================================
+        # Kurangi stok
         for product_id, qty in items:
             cursor.execute("""
                 UPDATE products
@@ -485,9 +530,7 @@ def accept_order(username, password):
                 WHERE product_id = %s
             """, (qty, product_id))
 
-        # ===========================================================
-        # 3. Update status order menjadi accepted (3)
-        # ===========================================================
+        # Update order status → Accepted
         cursor.execute("""
             UPDATE orders
             SET order_status_id = 3
@@ -495,12 +538,13 @@ def accept_order(username, password):
         """, (order_id,))
 
         connection.commit()
-        print(fr.GREEN + "\n[+] Order marked as accepted and stock updated!" + st.RESET_ALL)
+
+        print(fr.GREEN + "[+] Order accepted & stock updated!" + st.RESET_ALL)
         return True
 
     except Exception as e:
         connection.rollback()
-        print(fr.RED + f"\n[-] Error: {e}" + st.RESET_ALL)
+        print(fr.RED + f"[-] Error: {e}" + st.RESET_ALL)
         return False
 
     finally:
@@ -509,36 +553,63 @@ def accept_order(username, password):
 
 def reject_order(username, password):
     connection, cursor = conn()
-    
+
     try:
-        cursor.execute(
-            "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
-            (username, password)
-        )
+        # Validate seller
+        cursor.execute("""
+            SELECT seller_id 
+            FROM sellers 
+            WHERE username = %s AND password = %s AND is_deleted = FALSE
+        """, (username, password))
+
         seller = cursor.fetchone()
-        
+
         if not seller:
-            print("[-] Seller authentication failed.")
+            print(fr.RED + "[-] Seller authentication failed." + st.RESET_ALL)
             return False
 
         seller_id = seller[0]
-
         order_id = qu.text("Enter Order ID to mark as rejected: ").ask()
 
-        cursor.execute("""
-            SELECT o.order_id
-            FROM orders o
-            JOIN order_details od ON o.order_id = od.order_id
-            JOIN products p ON od.product_id = p.product_id
-            WHERE o.order_id = %s AND p.seller_id = %s AND o.is_deleted = false
-        """, (order_id, seller_id))
-
-        valid = cursor.fetchone()
-
-        if not valid:
-            print("[-] Order not found")
+        if not order_id.isdigit():
+            print(fr.RED + "[-] Invalid Order ID." + st.RESET_ALL)
             return False
 
+        order_id = int(order_id)
+
+        # ---------------------------------------------------------
+        # VALIDATE order contains ONLY this seller's products
+        # ---------------------------------------------------------
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM order_details od
+            JOIN products p ON od.product_id = p.product_id
+            WHERE od.order_id = %s
+              AND p.seller_id != %s
+        """, (order_id, seller_id))
+
+        other_seller = cursor.fetchone()[0]
+
+        if other_seller > 0:
+            print(fr.RED + "[-] This order contains products from another seller!" + st.RESET_ALL)
+            return False
+
+        # Check order exists for seller
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM order_details od
+            JOIN products p ON od.product_id = p.product_id
+            WHERE od.order_id = %s
+              AND p.seller_id = %s
+        """, (order_id, seller_id))
+
+        owner_items = cursor.fetchone()[0]
+
+        if owner_items == 0:
+            print(fr.RED + "[-] Order not found for your products." + st.RESET_ALL)
+            return False
+
+        # Update status → Rejected
         cursor.execute("""
             UPDATE orders
             SET order_status_id = 2
@@ -546,12 +617,12 @@ def reject_order(username, password):
         """, (order_id,))
 
         connection.commit()
-        print(fr.GREEN + "\n[+] Order marked as rejected" + st.RESET_ALL)
+        print(fr.GREEN + "[+] Order rejected successfully!" + st.RESET_ALL)
         return True
 
-    except Exception:
+    except:
         connection.rollback()
-        print(fr.RED + "\n[-] invalid Input syntax" + st.RESET_ALL)
+        print(fr.RED + "[-] Invalid input or query failed!" + st.RESET_ALL)
         return False
 
     finally:
@@ -611,7 +682,7 @@ def recap_delivery(username, password):
 			JOIN deliveries de ON o.delivery_id = de.delivery_id
 			JOIN delivery_status ds ON de.delivery_status_id = ds.delivery_status_id
 			JOIN couriers cr ON de.courier_id = cr.courier_id
-            WHERE s.username = 'ta' AND s.password = 'ta' AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
+            WHERE s.username = %s AND s.password = %s AND o.is_deleted = false AND os.order_status = 'Accepted' AND ds.delivery_status = 'Received' AND py.payment_status = 'Y'
             ORDER BY c.customer_name
     """
     cursor.execute(query, (username, password))

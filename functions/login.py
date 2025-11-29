@@ -8,7 +8,7 @@ def seller_login(username, password):
         query = """
             SELECT username 
             FROM sellers 
-            WHERE username = %s AND password = %s
+            WHERE username = %s AND password = %s AND is_deleted = FALSE
         """
 
         cursor.execute(query, (username, password))
@@ -31,7 +31,7 @@ def customer_login(username, password):
         query = """
             SELECT username 
             FROM customers 
-            WHERE username = %s AND password = %s
+            WHERE username = %s AND password = %s  AND is_deleted = FALSE
         """
 
         cursor.execute(query, (username, password))
@@ -54,7 +54,7 @@ def courier_login(username, password):
         query = """
             SELECT username 
             FROM couriers 
-            WHERE username = %s AND password = %s
+            WHERE username = %s AND password = %s  AND is_deleted = FALSE
         """
 
         cursor.execute(query, (username, password))

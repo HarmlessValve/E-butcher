@@ -40,7 +40,8 @@ CREATE TABLE couriers (
     courier_name VARCHAR(64) NOT NULL,
     phone_num CHAR(12) NOT NULL,
     username VARCHAR(64) NOT NULL UNIQUE,
-    password VARCHAR(64) NOT NULL
+    password VARCHAR(64) NOT NULL,
+	is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE sellers (
@@ -50,6 +51,7 @@ CREATE TABLE sellers (
     username VARCHAR(64) NOT NULL UNIQUE,
     password VARCHAR(64) NOT NULL,
     address_id INTEGER NOT NULL UNIQUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (address_id) REFERENCES addresses(address_id)
 );
 
@@ -60,6 +62,7 @@ CREATE TABLE customers (
     username VARCHAR(64) NOT NULL UNIQUE,
     password VARCHAR(64) NOT NULL,
     address_id INTEGER NOT NULL UNIQUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     FOREIGN KEY (address_id) REFERENCES addresses(address_id)
 );
 
@@ -82,7 +85,7 @@ CREATE TABLE delivery_status(
 
 CREATE TABLE order_status(
     order_status_id SERIAL PRIMARY KEY,
-    order_status VARCHAR(64) NOT NULL DEFAULT 'Pending'
+    order_status VARCHAR(64) NOT NULL DEFAULT 'Ready'
 );
 
 CREATE TABLE deliveries (

@@ -96,7 +96,6 @@ while True:
             username = qu.text("Choose Username:").ask()
             password = qu.password("Choose Password:").ask()
             street = qu.text("Enter Street:").ask()
-            district = qu.text("Enter District:").ask()
 
             if not validate_input(name, phone, username, password):
                 print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
@@ -110,7 +109,7 @@ while True:
                 print(fr.RED + "[-] Username already exists!\n" + st.RESET_ALL)
                 continue
 
-            if register_seller(name, phone, username, password, street, district):
+            if register_seller(name, phone, username, password, street):
                 print(fr.GREEN + "[+] Seller registered successfully!\n" + st.RESET_ALL)
             else:
                 print(fr.RED + "[-] Registration failed!\n" + st.RESET_ALL)
@@ -121,7 +120,6 @@ while True:
             username = qu.text("Choose Username:").ask()
             password = qu.password("Choose Password:").ask()
             street = qu.text("Enter Street:").ask()
-            district = qu.text("Enter District:").ask()
 
             if not validate_input(name, phone, username, password):
                 print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
@@ -135,7 +133,7 @@ while True:
                 print(fr.RED + "[-] Username already exists!\n" + st.RESET_ALL)
                 continue
 
-            if register_customer(name, phone, username, password, street, district):
+            if register_customer(name, phone, username, password, street):
                 print(fr.GREEN + "[+] Customer registered successfully!\n" + st.RESET_ALL)
             else:
                 print(fr.RED + "[-] Registration failed!\n" + st.RESET_ALL)
