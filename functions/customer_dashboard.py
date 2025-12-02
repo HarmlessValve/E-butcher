@@ -46,7 +46,7 @@ def dashboard(username, password):
             payment(username, password)
 
         elif option == "Exit":
-            print("Keluar dari dashboard.")
+            print("[!] Exiting dashboard...")
             break
 
 def account(username, password):
@@ -78,12 +78,8 @@ def account(username, password):
 def edit_account(username, password):
     connection, cursor = conn()
 
-    # --------------------------------------------------------
-    # AMBIL DATA CUSTOMER
-    # --------------------------------------------------------
     query = """
-        SELECT c.customer_name, c.phone_num, c.username, c.password,
-               a.address_id, a.street_name, a.district_id
+        SELECT c.customer_name, c.phone_num, c.username, c.password, a.address_id, a.street_name, a.district_id
         FROM customers c
         JOIN addresses a ON c.address_id = a.address_id
         WHERE c.username = %s AND c.password = %s AND c.is_deleted = FALSE
@@ -97,9 +93,6 @@ def edit_account(username, password):
 
     customer_name, phone_num, old_username, old_password, address_id, street_name, district_id = data
 
-    # --------------------------------------------------------
-    # TANYA DELETE ACCOUNT?
-    # --------------------------------------------------------
     delete_choice = qu.select(
         "Do you want to delete your account?",
         choices=["No", "Yes"]
@@ -119,9 +112,6 @@ def edit_account(username, password):
         print(fr.GREEN + "[+] Account deleted successfully." + st.RESET_ALL)
         return "logout"
 
-    # --------------------------------------------------------
-    # EDIT ACCOUNT
-    # --------------------------------------------------------
     print(fr.YELLOW + "[!] Edit Account" + st.RESET_ALL)
     print("Press Enter for non-updated fields.\n")
 
@@ -131,9 +121,6 @@ def edit_account(username, password):
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
     new_street = qu.text(f"Street Name ({street_name}): ").ask() or street_name
 
-    # --------------------------------------------------------
-    # DISTRICT SELECT (SAMA PERSIS KAYAK SELLER)
-    # --------------------------------------------------------
     cursor.execute("SELECT district_id, district_name FROM districts ORDER BY district_id ASC")
     district_data = cursor.fetchall()
 
@@ -147,18 +134,12 @@ def edit_account(username, password):
 
     new_district_id = next(d[0] for d in district_data if d[1] == new_district_name)
 
-    # --------------------------------------------------------
-    # UPDATE ADDRESS (street + district_id)
-    # --------------------------------------------------------
     cursor.execute("""
         UPDATE addresses
         SET street_name = %s, district_id = %s
         WHERE address_id = %s
     """, (new_street, new_district_id, address_id))
 
-    # --------------------------------------------------------
-    # UPDATE CUSTOMER
-    # --------------------------------------------------------
     cursor.execute("""
         UPDATE customers
         SET customer_name = %s,
@@ -168,8 +149,7 @@ def edit_account(username, password):
         WHERE username = %s AND password = %s
     """, (
         new_name, new_phone, new_username, new_password,
-        old_username, old_password
-    ))
+        old_username, old_password))
 
     connection.commit()
     cursor.close()
@@ -259,10 +239,6 @@ def make_order(username, password):
     order_items = []
 
     while True:
-
-        # ------------------------------
-        # PRODUCT ID INPUT
-        # ------------------------------
         pid = qu.text("Enter Product ID you want to order:").ask()
 
         if pid.strip() == "":
@@ -289,9 +265,6 @@ def make_order(username, password):
 
         product_id, name, stock, price = product
 
-        # ------------------------------
-        # QUANTITY INPUT
-        # ------------------------------
         qty = qu.text(f"Quantity for {name} (Stock {stock})").ask()
 
         if qty.strip() == "":
@@ -308,6 +281,7 @@ def make_order(username, password):
             print(fr.RED + f"[!] Invalid quantity for {name}." + st.RESET_ALL)
             continue
 
+        # Save product to cart list
         order_items.append((product_id, qty, price))
 
         more = qu.select("Add another product?", choices=["Yes", "No"]).ask()
@@ -317,9 +291,6 @@ def make_order(username, password):
     if not order_items:
         return fr.YELLOW + "[!] No items selected. Order cancelled." + st.RESET_ALL
 
-    # ------------------------------
-    # PURCHASE PROCESS
-    # ------------------------------
     cursor.execute("""
         INSERT INTO payments (payment_status, method_id)
         VALUES ('N', 1)
@@ -342,10 +313,13 @@ def make_order(username, password):
     order_id = cursor.fetchone()[0]
 
     for pid, qty, price in order_items:
+
+        discount = 10 if qty % 5 == 0 else 0
+
         cursor.execute("""
             INSERT INTO order_details (quantity, discount, price, product_id, order_id)
-            VALUES (%s, 0, %s, %s, %s)
-        """, (qty, price, pid, order_id))
+            VALUES (%s, %s, %s, %s, %s)
+        """, (qty, discount, price, pid, order_id))
 
         cursor.execute("""
             UPDATE products
@@ -362,7 +336,6 @@ def make_order(username, password):
 def cancel_order(username, password):
     connection, cursor = conn()
 
-    # Validasi customer
     cursor.execute("""
         SELECT customer_id, customer_name
         FROM customers
@@ -378,9 +351,6 @@ def cancel_order(username, password):
 
     print(f"\n{fr.CYAN}Hello {customer_name}! These are your orders:{st.RESET_ALL}\n")
 
-    # ===============================
-    # TAMPILKAN SEMUA ORDER CUSTOMER
-    # ===============================
     cursor.execute("""
         SELECT 
             o.order_id, 
@@ -402,14 +372,10 @@ def cancel_order(username, password):
         connection.close()
         return fr.YELLOW + "[!] You have no orders to cancel." + st.RESET_ALL
 
-    # Tampilkan tabel rapi
     data = [list(row) for row in rows]
     headers = ["Order ID", "Order Date", "Status", "Payment"]
     print(tb(data, headers=headers, tablefmt="fancy_grid"))
 
-    # ===============================
-    # PILIH ORDER UNTUK DIBATALKAN
-    # ===============================
     order_id = qu.text("\nEnter the Order ID you want to cancel: ").ask()
 
     try:
@@ -417,7 +383,6 @@ def cancel_order(username, password):
     except:
         return fr.RED + "[!] Order ID must be a number." + st.RESET_ALL
 
-    # Pastikan order miliknya
     cursor.execute("""
         SELECT order_status_id
         FROM orders
@@ -433,14 +398,12 @@ def cancel_order(username, password):
 
     current_status = order[0]
 
-    # Validasi status
     if current_status == 4:
         return fr.YELLOW + "[!] This order is already canceled." + st.RESET_ALL
 
     if current_status == 3:
         return fr.YELLOW + "[!] Accepted orders cannot be canceled." + st.RESET_ALL
 
-    # Eksekusi cancel
     cursor.execute("""
         UPDATE orders
         SET order_status_id = 4
@@ -475,15 +438,14 @@ def payment(username, password):
             o.order_date,
             pd.product_name,
             p.payment_status,
-            SUM(od.quantity * od.price) AS total_price
+            (od.quantity * od.price) - ((od.quantity * od.price) * od.discount/100) AS total_price
         FROM orders o
         JOIN payments p ON o.payment_id = p.payment_id
         JOIN order_details od ON o.order_id = od.order_id
 		JOIN products pd ON pd.product_id = od.product_id
-        WHERE o.customer_id = %s 
+        WHERE o.customer_id = 11 
             AND o.is_deleted = FALSE
             AND p.payment_status = 'N'
-        GROUP BY o.order_id, o.order_date, p.payment_status, pd.product_name
         ORDER BY o.order_id ASC
     """, (customer_id,))
 
@@ -536,7 +498,7 @@ def payment(username, password):
     if method == "Transfer":
         cursor.execute("""
             UPDATE payments
-            SET payment_status = 'Y'
+            SET payment_status = 'Y', method_id = 2
             WHERE payment_id = %s
         """, (payment_id,))
         
@@ -557,7 +519,7 @@ def payment(username, password):
                 WHERE payment_id = %s
             """, (payment_id,))
             connection.commit()
-            print(fr.GREEN + "\n[+] COD Payment marked as RECEIVED!" + st.RESET_ALL)
+            print(fr.GREEN + "\n[+] COD Payment marked as Received!" + st.RESET_ALL)
             return True
 
         if cod_status == "Back":
@@ -569,5 +531,4 @@ def payment(username, password):
             connection.commit()
             print(fr.YELLOW + "\n[!] COD returned. Payment remains unpaid." + st.RESET_ALL)
             return False
-
     return False

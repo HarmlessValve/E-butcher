@@ -1,6 +1,5 @@
 import pyfiglet as pf
 import questionary as qu
-from datetime import datetime
 from tabulate import tabulate as tb
 from colorama import Fore as fr, Style as st
 from functions.connection import conn
@@ -32,7 +31,7 @@ def dashboard(username, password):
             Delivery = delivery(username, password)
             print(Delivery)
         elif option == "Exit":
-            print("Keluar dari dashboard.")
+            print("[!] Exiting dashboard...")
             break
 
 def account(username, password):
@@ -62,9 +61,6 @@ def account(username, password):
 def edit_account(username, password):
     connection, cursor = conn()
 
-    # --------------------------------------------------------
-    # AMBIL DATA COURIER
-    # --------------------------------------------------------
     query = """
         SELECT c.courier_name, c.phone_num, c.username, c.password
         FROM couriers c
@@ -79,9 +75,6 @@ def edit_account(username, password):
 
     courier_name, phone_num, old_username, old_password = data
 
-    # --------------------------------------------------------
-    # TANYA DELETE ACCOUNT?
-    # --------------------------------------------------------
     delete_choice = qu.select(
         "Do you want to delete your account?",
         choices=["No", "Yes"]
@@ -101,9 +94,6 @@ def edit_account(username, password):
         print(fr.GREEN + "[+] Account deleted successfully." + st.RESET_ALL)
         return "logout"
 
-    # --------------------------------------------------------
-    # EDIT ACCOUNT
-    # --------------------------------------------------------
     print(fr.YELLOW + "[!] Edit Account" + st.RESET_ALL)
     print("Press Enter for non-updated fields.\n")
 
@@ -112,9 +102,6 @@ def edit_account(username, password):
     new_username = qu.text(f"Username ({old_username}): ").ask() or old_username
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
 
-    # --------------------------------------------------------
-    # UPDATE COURIER
-    # --------------------------------------------------------
     cursor.execute("""
         UPDATE couriers
         SET courier_name = %s,
@@ -136,7 +123,6 @@ def edit_account(username, password):
 def take_order(username, password):
     connection, cursor = conn()
 
-    # GET courier_id
     cursor.execute("""
         SELECT courier_id 
         FROM couriers
@@ -148,56 +134,57 @@ def take_order(username, password):
         return
     courier_id = courier[0]
 
-    # GET status_id
-    cursor.execute("SELECT order_status_id FROM order_status WHERE order_status = 'Accepted'")
-    accepted_id = cursor.fetchone()[0]
+    cursor.execute("SELECT delivery_status_id FROM delivery_status WHERE delivery_status = 'Ready'")
+    ready_id = cursor.fetchone()[0]
 
     cursor.execute("SELECT delivery_status_id FROM delivery_status WHERE delivery_status = 'Sending'")
     sending_id = cursor.fetchone()[0]
 
-    # SHOW accepted orders
     cursor.execute("""
-        SELECT o.order_id, o.order_date, c.customer_name
+        SELECT o.order_id, o.order_date, c.customer_name, a.street_name, ds.district_name
         FROM orders o
         JOIN customers c ON o.customer_id = c.customer_id
-        WHERE o.order_status_id = %s AND o.is_deleted = FALSE
+        JOIN deliveries d ON o.delivery_id = d.delivery_id
+		JOIN addresses a ON a.address_id = c.address_id
+		JOIN districts ds ON ds.district_id = a.district_id
+        WHERE d.delivery_status_id = %s AND o.is_deleted = FALSE
         ORDER BY o.order_id
-    """, (accepted_id,))
+    """, (ready_id,))
     rows = cursor.fetchall()
 
     if not rows:
-        print(fr.YELLOW + "[-] No Accepted orders." + st.RESET_ALL)
+        print(fr.YELLOW + "[-] No orders available to take." + st.RESET_ALL)
         return
 
-    print(tb(rows, headers=["Order ID","Date","Customer"], tablefmt="fancy_grid"))
+    print(tb(rows, headers=["Order ID", "Date", "Customer", "Street", "District"], tablefmt="fancy_grid"))
 
-    # INPUT ORDER
     while True:
         order_input = qu.text("Enter Order ID to take (enter = cancel): ").ask()
         if not order_input.strip():
             print(fr.YELLOW + "[*] Cancelled." + st.RESET_ALL)
             return
+
         if not order_input.isdigit():
             print(fr.RED + "[!] Must be number!" + st.RESET_ALL)
             continue
 
         order_id = int(order_input)
 
-        # Ambil delivery_id
         cursor.execute("""
-            SELECT delivery_id
-            FROM orders
-            WHERE order_id = %s AND order_status_id = %s
-        """, (order_id, accepted_id))
+            SELECT d.delivery_id
+            FROM orders o
+            JOIN deliveries d ON o.delivery_id = d.delivery_id
+            WHERE o.order_id = %s AND d.delivery_status_id = %s
+        """, (order_id, ready_id))
+
         result = cursor.fetchone()
 
         if not result:
-            print(fr.RED + "[-] Order not found or not Accepted!" + st.RESET_ALL)
+            print(fr.RED + "[-] Order not found or not Ready!" + st.RESET_ALL)
             continue
 
         delivery_id = result[0]
 
-        # UPDATE -> Sending
         cursor.execute("""
             UPDATE deliveries
             SET delivery_status_id = %s,
@@ -208,7 +195,7 @@ def take_order(username, password):
         connection.commit()
         print(fr.GREEN + f"[+] Order {order_id} marked as Sending." + st.RESET_ALL)
 
-        more = qu.select("Take another?", ["Yes","No"]).ask()
+        more = qu.select("Take another?", ["Yes", "No"]).ask()
         if more == "No":
             break
 
@@ -218,9 +205,6 @@ def take_order(username, password):
 def delivery(username, password):
     connection, cursor = conn()
 
-    # --------------------------------------------------------
-    # GET courier_id by username & password
-    # --------------------------------------------------------
     cursor.execute("""
         SELECT courier_id
         FROM couriers
@@ -236,38 +220,32 @@ def delivery(username, password):
 
     courier_id = data[0]
 
-    # --------------------------------------------------------
-    # GET delivery_status 'Sending' (2) and 'Received' (3)
-    # --------------------------------------------------------
     cursor.execute("SELECT delivery_status_id FROM delivery_status WHERE delivery_status = 'Sending'")
     sending_id = cursor.fetchone()[0]
 
     cursor.execute("SELECT delivery_status_id FROM delivery_status WHERE delivery_status = 'Received'")
     received_id = cursor.fetchone()[0]
 
-    # --------------------------------------------------------
-    # SHOW SENDING deliveries WITH seller + customer address
-    # --------------------------------------------------------
     cursor.execute("""
         SELECT 
             d.delivery_id,
             d.delivery_date,
 
-            -- Customer
             c.customer_name,
             ca.street_name AS customer_street,
             cd.district_name AS customer_district,
 
-            -- Seller
             s.seller_name,
             sa.street_name AS seller_street,
             sd.district_name AS seller_district,
 
-            -- Status
-            ds.delivery_status
+            ds.delivery_status, py.payment_status , pm.method_name,
+            (p.price * od.quantity) - ((p.price * od.quantity) * od.discount / 100) AS total_price
 
         FROM deliveries d
         JOIN orders o ON o.delivery_id = d.delivery_id
+		JOIN payments py ON o.payment_id = py.payment_id
+		JOIN payment_methods pm ON pm.method_id = py.method_id
         JOIN customers c ON c.customer_id = o.customer_id
         JOIN addresses ca ON ca.address_id = c.address_id
         JOIN districts cd ON cd.district_id = ca.district_id
@@ -277,13 +255,9 @@ def delivery(username, password):
         JOIN addresses sa ON sa.address_id = s.address_id
         JOIN districts sd ON sd.district_id = sa.district_id
         JOIN delivery_status ds ON ds.delivery_status_id = d.delivery_status_id
-        WHERE d.courier_id = %s
-          AND d.delivery_status_id = %s
-          AND o.is_deleted = FALSE
-        GROUP BY d.delivery_id, d.delivery_date,
-                 c.customer_name, ca.street_name, cd.district_name,
-                 s.seller_name, sa.street_name, sd.district_name,
-                 ds.delivery_status
+        WHERE d.courier_id = %s AND d.delivery_status_id = %s AND o.is_deleted = FALSE
+        GROUP BY d.delivery_id, d.delivery_date, c.customer_name, ca.street_name, cd.district_name,
+        s.seller_name, sa.street_name, sd.district_name, ds.delivery_status, pm.method_name, py.payment_status, total_price
         ORDER BY d.delivery_id
     """, (courier_id, sending_id))
 
@@ -295,9 +269,6 @@ def delivery(username, password):
         connection.close()
         return
 
-    # --------------------------------------------------------
-    # PRINT TABLE
-    # --------------------------------------------------------
     headers = [
         "Delivery ID",
         "Date",
@@ -307,18 +278,17 @@ def delivery(username, password):
         "Seller",
         "Seller Street",
         "Seller District",
-        "Status"
+        "Delivery Status",
+        "Payment Status",
+        "Payment Method",
+        "Total Price"
     ]
 
     print(tb(rows, headers=headers, tablefmt="fancy_grid"))
 
-    # --------------------------------------------------------
-    # LOOP INPUT DELIVERY ID
-    # --------------------------------------------------------
     while True:
         delivery_input = qu.text("Enter Delivery ID to mark as Received (Enter to cancel):").ask()
 
-        # Cancel jika user tekan Enter
         if delivery_input.strip() == "":
             print(fr.YELLOW + "[*] Action cancelled." + st.RESET_ALL)
             cursor.close()
@@ -331,13 +301,10 @@ def delivery(username, password):
 
         delivery_id = int(delivery_input)
 
-        # Validasi delivery id (harus milik kurir & status Sending)
         cursor.execute("""
             SELECT delivery_id
             FROM deliveries
-            WHERE delivery_id = %s
-              AND courier_id = %s
-              AND delivery_status_id = %s
+            WHERE delivery_id = %s AND courier_id = %s AND delivery_status_id = %s
         """, (delivery_id, courier_id, sending_id))
 
         check = cursor.fetchone()
@@ -346,9 +313,6 @@ def delivery(username, password):
             print(fr.RED + "[-] Delivery not found or not in Sending status!" + st.RESET_ALL)
             continue
 
-        # --------------------------------------------------------
-        # UPDATE status ke Received
-        # --------------------------------------------------------
         cursor.execute("""
             UPDATE deliveries
             SET delivery_status_id = %s

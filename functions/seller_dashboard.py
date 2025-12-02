@@ -71,7 +71,7 @@ def dashboard(username, password):
                     print(fr.YELLOW + "[-] data recap not found\n" + st.RESET_ALL)
                 
         elif option == "Exit":
-            print(fr.YELLOW + "[!] Exiting Dashboard..." + st.RESET_ALL)
+            print(fr.YELLOW + "[!] Exiting dashboard..." + st.RESET_ALL)
             break
 
 def account(username, password):
@@ -103,7 +103,6 @@ def account(username, password):
 def edit_account(username, password):
     connection, cursor = conn()
 
-    # Ambil data user
     query = """
         SELECT s.seller_name, s.phone_num, s.username, s.password, a.address_id, a.street_name, a.district_id
         FROM sellers s
@@ -119,9 +118,6 @@ def edit_account(username, password):
 
     seller_name, phone_num, old_username, old_password, address_id, street_name, district_id = data
 
-    # --------------------------------------------------------
-    # TANYA DELETE ACCOUNT?
-    # --------------------------------------------------------
     delete_choice = qu.select(
         "Do you want to delete your account?",
         choices=["No", "Yes"]
@@ -141,22 +137,15 @@ def edit_account(username, password):
         print(fr.GREEN + "[+] Account deleted successfully." + st.RESET_ALL)
         return "logout"
 
-    # --------------------------------------------------------
-    # EDIT ACCOUNT
-    # --------------------------------------------------------
     print(fr.YELLOW + "[!] Edit Account" + st.RESET_ALL)
     print("Press Enter for non-updated fields.\n")
 
-    # Input baru
     new_name = qu.text(f"Seller Name ({seller_name}): ").ask() or seller_name
     new_phone = qu.text(f"Phone Number ({phone_num}): ").ask() or phone_num
     new_username = qu.text(f"Username ({old_username}): ").ask() or old_username
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
     new_street = qu.text(f"Street Name ({street_name}): ").ask() or street_name
 
-    # --------------------------------------------------------
-    # DISTRICT PAKAI SELECT
-    # --------------------------------------------------------
     cursor.execute("SELECT district_id, district_name FROM districts ORDER BY district_id ASC")
     district_data = cursor.fetchall()
 
@@ -168,21 +157,14 @@ def edit_account(username, password):
         choices=district_names
     ).ask()
 
-    # Cari district_id baru
     new_district_id = next(d[0] for d in district_data if d[1] == new_district_name)
 
-    # --------------------------------------------------------
-    # UPDATE ADDRESS
-    # --------------------------------------------------------
     cursor.execute("""
         UPDATE addresses
         SET street_name = %s, district_id = %s
         WHERE address_id = %s
     """, (new_street, new_district_id, address_id))
 
-    # --------------------------------------------------------
-    # UPDATE SELLER
-    # --------------------------------------------------------
     cursor.execute("""
         UPDATE sellers
         SET seller_name = %s,
@@ -221,7 +203,6 @@ def product(username, password):
     if not rows:
         return fr.YELLOW + "[-] Data products not found." + st.RESET_ALL
 
-    # Convert each row tuple → list
     data = [list(row) for row in rows]
 
     headers = ["Product ID", "Name", "Stock", "Price", "Category", "Remove Product"]
@@ -233,7 +214,6 @@ def add_product(username, password, product_name, stock, price, category_name):
     connection, cursor = conn()
 
     try:
-        # Cek seller terlebih dahulu
         cursor.execute(
             "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
             (username, password)
@@ -246,7 +226,6 @@ def add_product(username, password, product_name, stock, price, category_name):
             connection.close()
             return False
 
-        # Query insert produk + kategori
         query = """
             WITH category AS (
                 INSERT INTO product_categories (category_name)
@@ -287,9 +266,6 @@ def edit_product(username, password):
     connection, cursor = conn()
 
     try:
-        # ---------------------------------------------------------
-        # 1. Authenticate seller
-        # ---------------------------------------------------------
         cursor.execute(
             "SELECT seller_id FROM sellers WHERE username = %s AND password = %s",
             (username, password)
@@ -302,9 +278,6 @@ def edit_product(username, password):
 
         seller_id = seller[0]
 
-        # ---------------------------------------------------------
-        # 2. Show seller's products
-        # ---------------------------------------------------------
         cursor.execute("""
             SELECT p.product_id, p.product_name, p.product_stock, p.price, c.category_name, p.is_deleted
             FROM products p
@@ -324,9 +297,6 @@ def edit_product(username, password):
             tablefmt="fancy_grid"
         ))
 
-        # ---------------------------------------------------------
-        # 3. Choose product
-        # ---------------------------------------------------------
         product_id = qu.text("Enter Product ID to edit: ").ask()
 
         cursor.execute("""
@@ -344,9 +314,6 @@ def edit_product(username, password):
 
         old_name, old_stock, old_price, old_category, old_is_deleted = product
 
-        # ---------------------------------------------------------
-        # 4. New input (optional)
-        # ---------------------------------------------------------
         print("press Enter for non-updated datas\n")
 
         new_name = qu.text(f"Product Name ({old_name}): ").ask() or old_name
@@ -354,15 +321,11 @@ def edit_product(username, password):
         new_price = qu.text(f"Price ({old_price}): ").ask() or old_price
         new_category = qu.text(f"Category ({old_category}): ").ask() or old_category
 
-        # ---------------------------------------------------------
-        # 5. NEW — select input for is_deleted (uses choices)
-        # ---------------------------------------------------------
         visibility_choice = qu.select(
             f"Product Visibility (current: {'Hidden' if old_is_deleted else 'Show'}): ",
             choices=[
                 "Show",
-                "Hide",
-                "Keep current"
+                "Hide"
             ]
         ).ask()
 
@@ -370,12 +333,7 @@ def edit_product(username, password):
             new_is_deleted = False
         elif visibility_choice.startswith("Hide"):
             new_is_deleted = True
-        else:
-            new_is_deleted = old_is_deleted
 
-        # ---------------------------------------------------------
-        # 6. Insert new category & update product
-        # ---------------------------------------------------------
         query = """
             WITH category AS (
                 INSERT INTO product_categories (category_name)
@@ -427,7 +385,7 @@ def orders(username, password):
     JOIN order_status os ON o.order_status_id = os.order_status_id
     JOIN payments py ON o.payment_id = py.payment_id
     JOIN payment_methods pm ON py.method_id = pm.method_id
-    WHERE s.username = %s AND s.password = %s AND o.is_deleted = false
+    WHERE s.username = %s AND s.password = %s AND o.is_deleted = false AND os.order_status = 'Pending'
     ORDER BY o.order_id
     """
     cursor.execute(query, (username, password))
@@ -450,15 +408,11 @@ def accept_order(username, password):
     connection, cursor = conn()
     
     try:
-        # ---------------------------------------------------------
-        # VALIDATE SELLER
-        # ---------------------------------------------------------
         cursor.execute("""
             SELECT seller_id 
             FROM sellers 
             WHERE username = %s AND password = %s AND is_deleted = FALSE
         """, (username, password))
-
         seller = cursor.fetchone()
 
         if not seller:
@@ -476,43 +430,45 @@ def accept_order(username, password):
 
         order_id = int(order_id)
 
-        # ---------------------------------------------------------
-        # CHECK IF THE ORDER BELONGS TO THIS SELLER ONLY
-        # ---------------------------------------------------------
+        cursor.execute("""
+            SELECT order_status_id 
+            FROM orders 
+            WHERE order_id = %s
+        """, (order_id,))
+        status = cursor.fetchone()
+
+        if not status:
+            print(fr.RED + "[-] Order not found." + st.RESET_ALL)
+            return False
+
+        if status[0] != 1:
+            print(fr.RED + "[-] Only Pending orders can be accepted!" + st.RESET_ALL)
+            return False
+
         cursor.execute("""
             SELECT COUNT(*)
             FROM order_details od
             JOIN products p ON od.product_id = p.product_id
-            WHERE od.order_id = %s
-              AND p.seller_id != %s       -- Ada barang dari seller lain
+            WHERE od.order_id = %s AND p.seller_id != %s
         """, (order_id, seller_id))
-
         other_seller = cursor.fetchone()[0]
 
         if other_seller > 0:
-            print(fr.RED + "[-] Order contains items from another seller!" + st.RESET_ALL)
+            print(fr.RED + "[-] Order contains products from another seller!" + st.RESET_ALL)
             return False
 
-        # ---------------------------------------------------------
-        # CHECK ORDER EXISTS AND BELONGS TO THIS SELLER
-        # ---------------------------------------------------------
         cursor.execute("""
             SELECT COUNT(*)
             FROM order_details od
             JOIN products p ON od.product_id = p.product_id
-            WHERE od.order_id = %s
-              AND p.seller_id = %s
+            WHERE od.order_id = %s AND p.seller_id = %s
         """, (order_id, seller_id))
-
         seller_items = cursor.fetchone()[0]
 
         if seller_items == 0:
-            print(fr.RED + "[-] Order not found or does not belong to your products." + st.RESET_ALL)
+            print(fr.RED + "[-] Order not found or not your products." + st.RESET_ALL)
             return False
 
-        # ---------------------------------------------------------
-        # GET all products & quantity for stock update
-        # ---------------------------------------------------------
         cursor.execute("""
             SELECT p.product_id, od.quantity
             FROM order_details od
@@ -522,7 +478,6 @@ def accept_order(username, password):
 
         items = cursor.fetchall()
 
-        # Kurangi stok
         for product_id, qty in items:
             cursor.execute("""
                 UPDATE products
@@ -530,15 +485,13 @@ def accept_order(username, password):
                 WHERE product_id = %s
             """, (qty, product_id))
 
-        # Update order status → Accepted
         cursor.execute("""
             UPDATE orders
-            SET order_status_id = 3
+            SET order_status_id = 3   -- Accepted
             WHERE order_id = %s
         """, (order_id,))
 
         connection.commit()
-
         print(fr.GREEN + "[+] Order accepted & stock updated!" + st.RESET_ALL)
         return True
 
@@ -555,13 +508,11 @@ def reject_order(username, password):
     connection, cursor = conn()
 
     try:
-        # Validate seller
         cursor.execute("""
             SELECT seller_id 
             FROM sellers 
             WHERE username = %s AND password = %s AND is_deleted = FALSE
         """, (username, password))
-
         seller = cursor.fetchone()
 
         if not seller:
@@ -569,6 +520,7 @@ def reject_order(username, password):
             return False
 
         seller_id = seller[0]
+
         order_id = qu.text("Enter Order ID to mark as rejected: ").ask()
 
         if not order_id.isdigit():
@@ -577,39 +529,45 @@ def reject_order(username, password):
 
         order_id = int(order_id)
 
-        # ---------------------------------------------------------
-        # VALIDATE order contains ONLY this seller's products
-        # ---------------------------------------------------------
+        cursor.execute("""
+            SELECT order_status_id 
+            FROM orders
+            WHERE order_id = %s
+        """, (order_id,))
+        status = cursor.fetchone()
+
+        if not status:
+            print(fr.RED + "[-] Order not found." + st.RESET_ALL)
+            return False
+
+        if status[0] != 1:
+            print(fr.RED + "[-] Only Pending orders can be rejected!" + st.RESET_ALL)
+            return False
+
         cursor.execute("""
             SELECT COUNT(*)
             FROM order_details od
             JOIN products p ON od.product_id = p.product_id
-            WHERE od.order_id = %s
-              AND p.seller_id != %s
+            WHERE od.order_id = %s AND p.seller_id != %s
         """, (order_id, seller_id))
-
         other_seller = cursor.fetchone()[0]
 
         if other_seller > 0:
-            print(fr.RED + "[-] This order contains products from another seller!" + st.RESET_ALL)
+            print(fr.RED + "[-] This order contains items from another seller!" + st.RESET_ALL)
             return False
 
-        # Check order exists for seller
         cursor.execute("""
             SELECT COUNT(*)
             FROM order_details od
             JOIN products p ON od.product_id = p.product_id
-            WHERE od.order_id = %s
-              AND p.seller_id = %s
+            WHERE od.order_id = %s AND p.seller_id = %s
         """, (order_id, seller_id))
-
         owner_items = cursor.fetchone()[0]
 
         if owner_items == 0:
             print(fr.RED + "[-] Order not found for your products." + st.RESET_ALL)
             return False
 
-        # Update status → Rejected
         cursor.execute("""
             UPDATE orders
             SET order_status_id = 2
@@ -620,9 +578,9 @@ def reject_order(username, password):
         print(fr.GREEN + "[+] Order rejected successfully!" + st.RESET_ALL)
         return True
 
-    except:
+    except Exception as e:
         connection.rollback()
-        print(fr.RED + "[-] Invalid input or query failed!" + st.RESET_ALL)
+        print(fr.RED + f"[-] Error: {e}" + st.RESET_ALL)
         return False
 
     finally:
@@ -633,8 +591,8 @@ def recap_order(username, password):
     connection, cursor = conn()
 
     query = """
-            SELECT o.order_date, p.product_name, pc.category_name, od.quantity, p.price, od.discount, 
-            p.price - (p.price * od.discount / 100) as discounted_price,
+            SELECT o.order_id, o.order_date, p.product_name, pc.category_name, od.quantity, p.price, od.discount, 
+            p.price * od.quantity - ((p.price * od. quantity )* od.discount / 100) as discounted_price,
             os.order_status, c.customer_name, py.payment_status, pm.method_name
             FROM products p 
             JOIN product_categories pc ON p.category_id = pc.category_id 
@@ -645,7 +603,7 @@ def recap_order(username, password):
             JOIN order_status os ON o.order_status_id = os.order_status_id
             JOIN payments py ON o.payment_id = py.payment_id
             JOIN payment_methods pm ON py.method_id = pm.method_id
-            WHERE s.username = %s AND s.password = %s AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
+            WHERE s.username = 'ta'  AND s.password = 'ta' AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
             ORDER BY c.customer_name
     """
     cursor.execute(query, (username, password))
@@ -659,7 +617,7 @@ def recap_order(username, password):
 
     data = [list(row) for row in rows]
 
-    headers = ["Order Date", "Name", "Category", "Order Quantity", "Price", "Discount", "Discounted Price", "Order Status", "Customer", "Payment Status", "Payment Method"]
+    headers = ["Order ID", "Order Date", "Name", "Category", "Order Quantity", "Price", "Discount", "Discounted Total Price", "Order Status", "Customer", "Payment Status", "Payment Method"]
 
     table = tb(data, headers=headers, tablefmt="fancy_grid")
     return table
@@ -668,8 +626,8 @@ def recap_delivery(username, password):
     connection, cursor = conn()
 
     query = """
-            SELECT o.order_date, p.product_name, pc.category_name, od.quantity,
-            os.order_status, c.customer_name, ds.delivery_status, cr.courier_name
+            SELECT de.delivery_id, o.order_date, p.product_name, pc.category_name, od.quantity,
+            os.order_status, c.customer_name, ds.delivery_status, cr.courier_name, py.payment_status
             FROM products p 
             JOIN product_categories pc ON p.category_id = pc.category_id 
             JOIN sellers s ON p.seller_id = s.seller_id
@@ -696,7 +654,7 @@ def recap_delivery(username, password):
 
     data = [list(row) for row in rows]
 
-    headers = ["Order Date", "Name", "Category", "Order Quantity", "Order Status", "Customer", "Delivery Status", "Courier"]
+    headers = ["Delivery ID", "Order Date", "Name", "Category", "Order Quantity", "Order Status", "Customer", "Delivery Status", "Courier", "Payment Status"]
 
     table = tb(data, headers=headers, tablefmt="fancy_grid")
     return table

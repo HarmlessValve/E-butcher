@@ -9,16 +9,11 @@ from functions.customer_dashboard import dashboard as customer_dashboard
 from functions.courier_dashboard import dashboard as courier_dashboard
 
 
-# ========================= UTILS =========================
-
 def validate_input(*fields):
     return all(field and field.strip() != "" for field in fields)
 
 def validate_phone(phone):
     return phone.isdigit() and len(phone) == 12
-
-
-# ========================= UI =========================
 
 msg = pf.figlet_format("E-Butcher", font="larry3d")
 print(fr.RED + st.BRIGHT + msg)
@@ -47,12 +42,9 @@ def main_menu():
     ).ask()
 
 
-# ========================= MAIN LOOP =========================
-
 while True:
     option = main_menu()
 
-    # ========== LOGIN ==========
     if option == "Login":
         choice = login_menu()
 
@@ -86,11 +78,10 @@ while True:
             print(fr.RED + "[-] Invalid input \n" + st.RESET_ALL)
         continue
 
-    # ========== REGISTER ==========
     elif option == "Register":
         choice = register_menu()
 
-        if choice == "1":      # seller register
+        if choice == "1": 
             name = qu.text("Enter Full Name:").ask()
             phone = qu.text("Enter Phone Number (12 digits):").ask()
             username = qu.text("Choose Username:").ask()
@@ -114,7 +105,7 @@ while True:
             else:
                 print(fr.RED + "[-] Registration failed!\n" + st.RESET_ALL)
 
-        elif choice == "2":    # customer register
+        elif choice == "2":
             name = qu.text("Enter Full Name:").ask()
             phone = qu.text("Enter Phone Number (12 digits):").ask()
             username = qu.text("Choose Username:").ask()
@@ -138,7 +129,7 @@ while True:
             else:
                 print(fr.RED + "[-] Registration failed!\n" + st.RESET_ALL)
 
-        elif choice == "3":    # courier register
+        elif choice == "3":
             name = qu.text("Enter Full Name:").ask()
             phone = qu.text("Enter Phone Number (12 digits):").ask()
             username = qu.text("Choose Username:").ask()
@@ -164,7 +155,6 @@ while True:
             print(fr.RED + "[-] Invalid Input \n" + st.RESET_ALL)
         continue
 
-    # ========== EXIT ==========
     else:
         print(fr.YELLOW + "[!] Exiting program..." + st.RESET_ALL)
         break

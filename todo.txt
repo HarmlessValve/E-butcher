@@ -9,7 +9,7 @@
                     - add products                   #menu product ✅
                     - edit products                  #menu product ✅
                     - disable products               #menu product ✅
-                    - cari product based on category #menu product (optional) no ini gausah cape anjeeeeer
+                    - cari product based on category #menu product (optional) no ini gausah cape
                     - show orders list               #menu order ✅
                     - show orders status             #menu order ✅
                     - confirm orders                 #menu order ✅
@@ -32,6 +32,6 @@
 
 3. buat Courier Menu:- show account             #menu account ✅
                      - edit account             #menu account ✅
-                     - show orders              #menu delivery
-                     - take orders              #menu delivery
-                     - change status products   #menu delivery
+                     - show orders              #menu delivery ✅
+                     - take orders              #menu delivery ✅
+                     - change status products   #menu delivery ✅

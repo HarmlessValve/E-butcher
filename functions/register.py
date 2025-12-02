@@ -44,7 +44,6 @@ def choose_district():
 
 def register_seller(name, phone, username, password, street):
     try:
-        # district param TIDAK dipakai
         district_id = choose_district()
         if district_id is None:
             return False
@@ -74,7 +73,6 @@ def register_seller(name, phone, username, password, street):
 
 def register_customer(name, phone, username, password, street):
     try:
-        # district param TIDAK dipakai
         district_id = choose_district()
         if district_id is None:
             return False
