@@ -281,7 +281,6 @@ def make_order(username, password):
             print(fr.RED + f"[!] Invalid quantity for {name}." + st.RESET_ALL)
             continue
 
-        # Save product to cart list
         order_items.append((product_id, qty, price))
 
         more = qu.select("Add another product?", choices=["Yes", "No"]).ask()
@@ -291,6 +290,7 @@ def make_order(username, password):
     if not order_items:
         return fr.YELLOW + "[!] No items selected. Order cancelled." + st.RESET_ALL
 
+    # Create Payment
     cursor.execute("""
         INSERT INTO payments (payment_status, method_id)
         VALUES ('N', 1)
@@ -298,6 +298,7 @@ def make_order(username, password):
     """)
     payment_id = cursor.fetchone()[0]
 
+    # Create Delivery (default pending)
     cursor.execute("""
         INSERT INTO deliveries (delivery_date, delivery_status_id, courier_id)
         VALUES (%s, 1, 1)
@@ -305,6 +306,7 @@ def make_order(username, password):
     """, (datetime.now(),))
     delivery_id = cursor.fetchone()[0]
 
+    # Create Order
     cursor.execute("""
         INSERT INTO orders (order_date, order_status_id, payment_id, customer_id, delivery_id, is_deleted)
         VALUES (%s, 1, %s, %s, %s, false)
@@ -312,6 +314,7 @@ def make_order(username, password):
     """, (datetime.now(), payment_id, customer_id, delivery_id))
     order_id = cursor.fetchone()[0]
 
+    # Insert Order Items (NO STOCK DEDUCTION HERE)
     for pid, qty, price in order_items:
 
         discount = 10 if qty % 5 == 0 else 0
@@ -320,12 +323,6 @@ def make_order(username, password):
             INSERT INTO order_details (quantity, discount, price, product_id, order_id)
             VALUES (%s, %s, %s, %s, %s)
         """, (qty, discount, price, pid, order_id))
-
-        cursor.execute("""
-            UPDATE products
-            SET product_stock = product_stock - %s
-            WHERE product_id = %s
-        """, (qty, pid))
 
     connection.commit()
     cursor.close()
@@ -345,11 +342,26 @@ def cancel_order(username, password):
     customer = cursor.fetchone()
 
     if not customer:
-        return fr.RED + "[!] Invalid customer credentials." + st.RESET_ALL
+        print(fr.RED + "[!] Invalid customer credentials." + st.RESET_ALL)
+        return
 
     customer_id, customer_name = customer
 
-    print(f"\n{fr.CYAN}Hello {customer_name}! These are your orders:{st.RESET_ALL}\n")
+    print(f"\n{fr.CYAN}Hello {customer_name}! These are your cancellable orders:{st.RESET_ALL}\n")
+
+    cursor.execute("""
+        SELECT o.order_id
+        FROM orders o
+        WHERE o.customer_id = %s
+        AND o.is_deleted = false
+        AND o.order_status_id = 1
+    """, (customer_id,))
+
+    pending_orders = [row[0] for row in cursor.fetchall()]
+
+    if not pending_orders:
+        print(fr.YELLOW + "[!] You have no pending orders to cancel." + st.RESET_ALL)
+        return
 
     cursor.execute("""
         SELECT 
@@ -360,17 +372,11 @@ def cancel_order(username, password):
         FROM orders o
         JOIN order_status s ON o.order_status_id = s.order_status_id
         JOIN payments p ON o.payment_id = p.payment_id
-        WHERE o.customer_id = %s 
-        AND o.is_deleted = false
+        WHERE o.order_id = ANY(%s)
         ORDER BY o.order_id
-    """, (customer_id,))
+    """, (pending_orders,))
 
     rows = cursor.fetchall()
-
-    if not rows:
-        cursor.close()
-        connection.close()
-        return fr.YELLOW + "[!] You have no orders to cancel." + st.RESET_ALL
 
     data = [list(row) for row in rows]
     headers = ["Order ID", "Order Date", "Status", "Payment"]
@@ -381,28 +387,12 @@ def cancel_order(username, password):
     try:
         order_id = int(order_id)
     except:
-        return fr.RED + "[!] Order ID must be a number." + st.RESET_ALL
+        print(fr.RED + "[!] Order ID must be a number." + st.RESET_ALL)
+        return
 
-    cursor.execute("""
-        SELECT order_status_id
-        FROM orders
-        WHERE order_id = %s 
-        AND customer_id = %s 
-        AND is_deleted = false
-    """, (order_id, customer_id))
-    
-    order = cursor.fetchone()
-
-    if not order:
-        return fr.RED + "[!] Order not found or does not belong to you." + st.RESET_ALL
-
-    current_status = order[0]
-
-    if current_status == 4:
-        return fr.YELLOW + "[!] This order is already canceled." + st.RESET_ALL
-
-    if current_status == 3:
-        return fr.YELLOW + "[!] Accepted orders cannot be canceled." + st.RESET_ALL
+    if order_id not in pending_orders:
+        print(fr.RED + "[!] Invalid Order ID! Choose one from the table above." + st.RESET_ALL)
+        return
 
     cursor.execute("""
         UPDATE orders
@@ -411,10 +401,11 @@ def cancel_order(username, password):
     """, (order_id,))
 
     connection.commit()
+
+    print(fr.GREEN + f"[+] Order #{order_id} successfully cancelled!" + st.RESET_ALL)
+
     cursor.close()
     connection.close()
-
-    return fr.GREEN + f"[+] Order #{order_id} has been successfully canceled!" + st.RESET_ALL
 
 def payment(username, password):
     connection, cursor = conn()
@@ -443,7 +434,7 @@ def payment(username, password):
         JOIN payments p ON o.payment_id = p.payment_id
         JOIN order_details od ON o.order_id = od.order_id
 		JOIN products pd ON pd.product_id = od.product_id
-        WHERE o.customer_id = 11 
+        WHERE o.customer_id = %s 
             AND o.is_deleted = FALSE
             AND p.payment_status = 'N'
         ORDER BY o.order_id ASC
@@ -454,7 +445,7 @@ def payment(username, password):
     if unpaid_orders:
         print("\n" + fr.CYAN + "Orders that need payment:" + st.RESET_ALL)
 
-        headers = ["Order ID", "Order Date", "Payment Status", "Total Price"]
+        headers = ["Order ID", "Order Date", "Product", "Payment Status", "Total Price"]
         print(tb(unpaid_orders, headers=headers, tablefmt="fancy_grid"))
 
     else:

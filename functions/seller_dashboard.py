@@ -430,6 +430,7 @@ def accept_order(username, password):
 
         order_id = int(order_id)
 
+        # Check order exists and pending
         cursor.execute("""
             SELECT order_status_id 
             FROM orders 
@@ -445,6 +446,7 @@ def accept_order(username, password):
             print(fr.RED + "[-] Only Pending orders can be accepted!" + st.RESET_ALL)
             return False
 
+        # Check if order belongs to this seller
         cursor.execute("""
             SELECT COUNT(*)
             FROM order_details od
@@ -458,18 +460,6 @@ def accept_order(username, password):
             return False
 
         cursor.execute("""
-            SELECT COUNT(*)
-            FROM order_details od
-            JOIN products p ON od.product_id = p.product_id
-            WHERE od.order_id = %s AND p.seller_id = %s
-        """, (order_id, seller_id))
-        seller_items = cursor.fetchone()[0]
-
-        if seller_items == 0:
-            print(fr.RED + "[-] Order not found or not your products." + st.RESET_ALL)
-            return False
-
-        cursor.execute("""
             SELECT p.product_id, od.quantity
             FROM order_details od
             JOIN products p ON od.product_id = p.product_id
@@ -478,6 +468,10 @@ def accept_order(username, password):
 
         items = cursor.fetchall()
 
+        if not items:
+            print(fr.RED + "[-] Order not found or not your products." + st.RESET_ALL)
+            return False
+
         for product_id, qty in items:
             cursor.execute("""
                 UPDATE products
@@ -485,6 +479,7 @@ def accept_order(username, password):
                 WHERE product_id = %s
             """, (qty, product_id))
 
+        # Set order to Accepted
         cursor.execute("""
             UPDATE orders
             SET order_status_id = 3   -- Accepted
@@ -603,7 +598,7 @@ def recap_order(username, password):
             JOIN order_status os ON o.order_status_id = os.order_status_id
             JOIN payments py ON o.payment_id = py.payment_id
             JOIN payment_methods pm ON py.method_id = pm.method_id
-            WHERE s.username = 'ta'  AND s.password = 'ta' AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
+            WHERE s.username = %s  AND s.password = %s AND o.is_deleted = false AND os.order_status = 'Accepted' AND py.payment_status = 'Y'
             ORDER BY c.customer_name
     """
     cursor.execute(query, (username, password))
