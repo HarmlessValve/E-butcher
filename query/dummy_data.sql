@@ -29,16 +29,16 @@ INSERT INTO addresses (street_name, district_id) VALUES
 ('Jl. Hayam Wuruk', 5),
 ('Jl. Kartini', 6),
 ('Jl. Brawijaya', 7),
-('Jl. Hayam Wuruk', 8),
-('Jl. Basuki Rahmat', 9),
-('Jl. Kenanga', 10),
-('Jl. Mawar', 11),
-('Jl. Melati', 12),
-('Jl. Teratai', 3),
-('Jl. Wijaya Kusuma', 4),
-('Jl. Kaliurang', 5),
-('Jl. Jawa', 6),
-('Jl. Sumatra', 7);
+('Jl. Basuki Rahmat', 8),
+('Jl. Kenanga', 9),
+('Jl. Mawar', 10),
+('Jl. Melati', 11),
+('Jl. Teratai', 12),
+('Jl. Wijaya Kusuma', 3),
+('Jl. Kaliurang', 4),
+('Jl. Jawa', 5),
+('Jl. Sumatra', 6),
+('Jl. Kalimantan', 7);
 
 ------------------------------------------------------------
 -- 3. PRODUCT CATEGORIES
