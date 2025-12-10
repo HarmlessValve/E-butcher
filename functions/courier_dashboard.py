@@ -119,6 +119,7 @@ def edit_account(username, password):
 
     if not validate_input_name(new_name):
         print(fr.RED + "[-] Invalid input courier name!\n" + st.RESET_ALL)
+        return
 
     if not validate_input(new_phone, new_username, new_password):
         print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
