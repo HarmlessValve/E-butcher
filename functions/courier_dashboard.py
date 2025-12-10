@@ -61,6 +61,14 @@ def account(username, password):
 def validate_input(*fields):
     return all(field and field.strip() != "" for field in fields)
 
+def validate_input_name(*fields):
+    return all(
+        field 
+        and field.strip() != "" 
+        and field.replace(" ", "").isalpha()
+        for field in fields
+    )
+
 def validate_phone(phone):
     return phone.isdigit() and len(phone) == 12
 
@@ -109,7 +117,10 @@ def edit_account(username, password):
     new_username = qu.text(f"Username ({old_username}): ").ask() or old_username
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
 
-    if not validate_input(new_name, new_phone, new_username, new_password):
+    if not validate_input_name(new_name):
+        print(fr.RED + "[-] Invalid input courier name!\n" + st.RESET_ALL)
+
+    if not validate_input(new_phone, new_username, new_password):
         print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
         return
 
