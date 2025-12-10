@@ -75,6 +75,12 @@ def account(username, password):
 
     return result
 
+def validate_input(*fields):
+    return all(field and field.strip() != "" for field in fields)
+
+def validate_phone(phone):
+    return phone.isdigit() and len(phone) == 12
+
 def edit_account(username, password):
     connection, cursor = conn()
 
@@ -121,6 +127,14 @@ def edit_account(username, password):
     new_password = qu.password(f"Password ({old_password}): ").ask() or old_password
     new_street = qu.text(f"Street Name ({street_name}): ").ask() or street_name
 
+    if not validate_input(new_name, new_phone, new_username, new_password):
+        print(fr.RED + "[-] All fields must be filled!\n" + st.RESET_ALL)
+        return
+
+    if not validate_phone(new_phone):
+        print(fr.RED + "[-] Phone number must be 12 digits!\n" + st.RESET_ALL)
+        return
+
     cursor.execute("SELECT district_id, district_name FROM districts ORDER BY district_id ASC")
     district_data = cursor.fetchall()
 
@@ -149,7 +163,8 @@ def edit_account(username, password):
         WHERE username = %s AND password = %s
     """, (
         new_name, new_phone, new_username, new_password,
-        old_username, old_password))
+        old_username, old_password
+    ))
 
     connection.commit()
     cursor.close()
